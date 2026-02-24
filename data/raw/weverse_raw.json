@@ -1,0 +1,392 @@
+[
+  {
+    "product_name": "포토카드",
+    "product_name_en": "Photocard",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "랜덤 포토카드",
+    "product_name_en": "Random Photocard",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "유닛 포토카드",
+    "product_name_en": "Unit Photocard",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "그룹 포토카드",
+    "product_name_en": "Group Photocard",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "멤버 포토카드",
+    "product_name_en": "Member Photocard",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "공식 응원봉",
+    "product_name_en": "Official Light Stick",
+    "artist_slug": "general",
+    "category": "응원봉",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "응원봉",
+    "product_name_en": "Light Stick",
+    "artist_slug": "general",
+    "category": "응원봉",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "응원봉 스트랩",
+    "product_name_en": "Light Stick Strap",
+    "artist_slug": "general",
+    "category": "응원봉",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "미니 앨범",
+    "product_name_en": "Mini Album",
+    "artist_slug": "general",
+    "category": "앨범",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "정규 앨범",
+    "product_name_en": "Full Album",
+    "artist_slug": "general",
+    "category": "앨범",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "리패키지 앨범",
+    "product_name_en": "Repackage Album",
+    "artist_slug": "general",
+    "category": "앨범",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "싱글 앨범",
+    "product_name_en": "Single Album",
+    "artist_slug": "general",
+    "category": "앨범",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "스페셜 앨범",
+    "product_name_en": "Special Album",
+    "artist_slug": "general",
+    "category": "앨범",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "키링",
+    "product_name_en": "Key Ring",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "폰케이스",
+    "product_name_en": "Phone Case",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "파우치",
+    "product_name_en": "Pouch",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "에코백",
+    "product_name_en": "Eco Bag",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "슬로건",
+    "product_name_en": "Slogan",
+    "artist_slug": "general",
+    "category": "슬로건",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "타월 슬로건",
+    "product_name_en": "Towel Slogan",
+    "artist_slug": "general",
+    "category": "슬로건",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "미니 슬로건",
+    "product_name_en": "Mini Slogan",
+    "artist_slug": "general",
+    "category": "슬로건",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "뱃지",
+    "product_name_en": "Badge",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "핀 버튼",
+    "product_name_en": "Pin Button",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "스티커",
+    "product_name_en": "Sticker",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "아크릴 스탠드",
+    "product_name_en": "Acrylic Stand",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "아크릴 키링",
+    "product_name_en": "Acrylic Key Ring",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "엽서",
+    "product_name_en": "Postcard",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "포스터",
+    "product_name_en": "Poster",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "티셔츠",
+    "product_name_en": "T-Shirt",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "후드티",
+    "product_name_en": "Hoodie",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "모자",
+    "product_name_en": "Cap / Hat",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "담요",
+    "product_name_en": "Blanket",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "머그컵",
+    "product_name_en": "Mug",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "시즌 그리팅",
+    "product_name_en": "Season's Greetings",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "미니 데스크 캘린더",
+    "product_name_en": "Mini Desk Calendar",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "다이어리",
+    "product_name_en": "Diary",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "포토북",
+    "product_name_en": "Photobook",
+    "artist_slug": "general",
+    "category": "공식MD",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "선주문 특전",
+    "product_name_en": "Pre-order Benefit",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "팬싸인회 특전",
+    "product_name_en": "Fansign Benefit",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  },
+  {
+    "product_name": "행사 특전",
+    "product_name_en": "Event Exclusive",
+    "artist_slug": "general",
+    "category": "포토카드",
+    "source_url": "https://shop.weverse.io",
+    "language": "ko",
+    "collected_at": "2026-02-20T10:00:16.268138+00:00",
+    "is_manual": true
+  }
+]
