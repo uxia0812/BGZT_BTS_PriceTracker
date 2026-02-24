@@ -1,2 +1,8 @@
 credentials.json
 *.key.json
+
+# secrets
+credentials.json
+*.key.json
+*.pem
+.env
