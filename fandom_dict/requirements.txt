@@ -1,0 +1,14 @@
+# Claude API (선택, 시드 생성 시에만 사용)
+anthropic>=0.40.0
+
+# 웹 스크래핑 (위버스샵, eBay, Reddit JSON 피드)
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# 구글 시트 업로드
+gspread>=6.0.0
+google-auth>=2.27.0
+
+# 환경변수 관리
+python-dotenv>=1.0.0

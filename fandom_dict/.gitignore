@@ -1,0 +1,35 @@
+# 환경변수 및 API 키
+.env
+credentials.json
+
+# 수집 원본 데이터 (용량 및 개인정보 이슈)
+data/raw/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 로그
+*.log
+logs/
