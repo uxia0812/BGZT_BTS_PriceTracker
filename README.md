@@ -66,11 +66,18 @@ open http://localhost:8000/bts_photocard_market.html
 ### 2. 데이터 업데이트
 
 ```bash
-# Redash에서 최신 데이터 가져오기 (자동)
+# 1) Redash에서 최신 데이터 페치 (필수)
+# .env에 REDASH_API_KEY 설정 또는:
+REDASH_API_KEY=your_key python3 fetch_redash_data.py
+
+# 2) HTML 생성 (페치 후)
 python3 bts_photocard_analyzer.py
 
-# HTML 파일이 자동으로 업데이트됨
+# 한 번에: 페치 + HTML 생성
+REDASH_API_KEY=your_key python3 fetch_redash_data.py --analyze
 ```
+
+**매일 오전 10시 자동 업데이트**: `SCHEDULE.md` 참고
 
 ### 3. 배포 (Vercel 권장)
 
