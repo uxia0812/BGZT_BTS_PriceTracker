@@ -233,7 +233,7 @@ def normalize_photocard(product):
         'member': member,
         'album': album,
         'types': special_types,
-        'official_name': f"BTS {member} - {album} ({', '.join(special_types)})",
+        'official_name': f"BTS {member} - {album}",
         'original_title': title,
         'price': product['상품가격'],
         'product_id': product_id,
@@ -878,7 +878,7 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             album = pc['album']
             types_list = pc['types']
             if is_en:
-                name_display = f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)} ({', '.join(TYPE_EN.get(t, t) for t in types_list)})"
+                name_display = f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)}"
                 album_display = ALBUM_EN.get(album, album)
                 tags_display = ''.join(f'<span class="tag">{TYPE_EN.get(t, t)}</span>' for t in types_list)
                 search_text = f"{name_display} {album_display} {' '.join(TYPE_EN.get(t,t) for t in types_list)}".lower()
