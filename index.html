@@ -12444,6 +12444,10 @@
         }
 
         function setTypeFilter(type) {
+            // 이미 선택된 타입을 다시 클릭하면 해제(전체로)
+            if (currentType === type) {
+                type = 'all';
+            }
             currentType = type;
             document.querySelectorAll('#typeFilters .type-option').forEach(el => {
                 el.classList.toggle('selected', el.dataset.type === type);

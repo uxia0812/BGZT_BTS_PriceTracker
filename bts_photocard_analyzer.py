@@ -1,11 +1,19 @@
 """
 BTS 포토카드 시세 분석 및 웹페이지 생성 스크립트
 """
+import argparse
 import json
 import re
 from collections import defaultdict
 from datetime import datetime
 import statistics
+
+try:
+    import requests
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 # 멤버 이름 매핑
 MEMBERS = {
@@ -63,6 +71,38 @@ SPECIAL_TYPES = {
     '미니포': ['미니포토'],
 }
 
+def build_bunjang_image_url(product_id, created_date_str, modified_date_str, image_count):
+    """글로벌번장 이미지 URL 구성 (상품등록일자/수정일시 기반)"""
+    if not image_count or image_count < 1:
+        return None
+    for date_str in (modified_date_str, created_date_str):
+        if not date_str:
+            continue
+        try:
+            s = date_str.replace('Z', '+00:00')
+            if 'T' in s:
+                dt = datetime.fromisoformat(s)
+            else:
+                dt = datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S')
+            ts = int(dt.timestamp())
+            return f"https://media.bunjang.co.kr/product/{product_id}_1_{ts}_w640.jpg"
+        except (ValueError, TypeError):
+            continue
+    return None
+
+
+def validate_product_url(url, timeout=6):
+    """상품 페이지 존재 여부 확인 (HEAD 요청)"""
+    if not HAS_REQUESTS:
+        return True  # 검증 불가 시 일단 표시
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (compatible; FandomDictBot/1.0)'}
+        r = requests.head(url, timeout=timeout, allow_redirects=True, headers=headers)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
 def extract_member(title):
     """상품명에서 멤버 추출"""
     title_lower = title.lower()
@@ -101,6 +141,11 @@ def normalize_photocard(product):
 
     # 포카 ID 생성 (멤버 + 앨범 + 타입)
     photocard_id = f"{member}_{album}_{'_'.join(special_types)}"
+    product_id = product['상품id']
+    created = product.get('상품등록일자') or ''
+    modified = product.get('수정일시') or ''
+    image_count = product.get('이미지수', 0)
+    image_url = build_bunjang_image_url(product_id, created, modified, image_count) if (created or modified) else None
 
     return {
         'id': photocard_id,
@@ -110,9 +155,10 @@ def normalize_photocard(product):
         'official_name': f"BTS {member} - {album} ({', '.join(special_types)})",
         'original_title': title,
         'price': product['상품가격'],
-        'product_id': product['상품id'],
-        'created_date': product['상품등록일자'],
-        'image_count': product['이미지수']
+        'product_id': product_id,
+        'created_date': created,
+        'image_count': image_count,
+        'image_url': image_url
     }
 
 def calculate_median_price(prices):
@@ -121,7 +167,7 @@ def calculate_median_price(prices):
         return 0
     return statistics.median(prices)
 
-def analyze_photocards(data_file):
+def analyze_photocards(data_file, validate_links=True):
     """포토카드 데이터 분석"""
     print("데이터 로딩 중...")
     with open(data_file, 'r', encoding='utf-8') as f:
@@ -132,6 +178,7 @@ def analyze_photocards(data_file):
 
     # 포토카드별로 그룹화
     photocard_groups = defaultdict(list)
+    total_groups = 0
 
     for row in rows:
         try:
@@ -143,40 +190,59 @@ def analyze_photocards(data_file):
 
     # 각 포토카드별 통계 계산
     photocard_stats = []
+    group_items = [(k, v) for k, v in photocard_groups.items() if len(v) >= 2]
+    do_validate = validate_links and HAS_REQUESTS
+    if do_validate:
+        print("상품 링크 검증 중... (실제 존재하는 상품만 표시)")
 
-    for photocard_id, products in photocard_groups.items():
-        if len(products) < 2:  # 최소 2개 이상 거래 (3→2로 완화하여 더 많은 종류 표시)
-            continue
-
+    def process_group(item):
+        photocard_id, products = item
         prices = [p['price'] for p in products if p['price'] > 0]
         if not prices:
-            continue
-
-        # 이상치 제거 (Q1-1.5*IQR, Q3+1.5*IQR 범위)
+            return None
         q1 = statistics.quantiles(prices, n=4)[0]
         q3 = statistics.quantiles(prices, n=4)[2]
         iqr = q3 - q1
         filtered_prices = [p for p in prices if q1 - 1.5*iqr <= p <= q3 + 1.5*iqr]
-
         if not filtered_prices:
             filtered_prices = prices
-
-        # 시계열 데이터 생성 (날짜별 가격)
-        time_series = []
-        for product in sorted(products, key=lambda x: x['created_date']):
-            if product['price'] > 0:
-                time_series.append({
-                    'date': product['created_date'][:10],  # YYYY-MM-DD만
-                    'price': product['price']
-                })
-
-        # 대표 상품 선택 (중앙값에 가장 가까운 가격의 상품)
         median_val = calculate_median_price(filtered_prices)
-        representative = min(
+        candidates = sorted(
             [p for p in products if p['price'] > 0],
             key=lambda x: abs(x['price'] - median_val)
         )
+        representative = candidates[0]
+        has_valid_link = not do_validate  # 검증 생략 시 링크 표시
+        if do_validate:
+            for cand in candidates:
+                if validate_product_url(f"https://globalbunjang.com/product/{cand['product_id']}"):
+                    representative = cand
+                    has_valid_link = True
+                    break
+        time_series = [
+            {'date': p['created_date'][:10], 'price': p['price']}
+            for p in sorted(products, key=lambda x: x['created_date'])
+            if p['price'] > 0
+        ]
+        return (
+            photocard_id, products, representative, has_valid_link,
+            filtered_prices, time_series
+        )
 
+    if do_validate:
+        processed = []
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            futures = {ex.submit(process_group, item): item for item in group_items}
+            for i, fut in enumerate(as_completed(futures)):
+                if (i + 1) % 50 == 0:
+                    print(f"  검증 진행: {i + 1}/{len(group_items)}")
+                result = fut.result()
+                if result:
+                    processed.append(result)
+    else:
+        processed = [r for r in (process_group(it) for it in group_items) if r is not None]
+
+    for photocard_id, products, representative, has_valid_link, filtered_prices, time_series in processed:
         photocard_stats.append({
             'id': photocard_id,
             'official_name': representative['official_name'],
@@ -190,13 +256,20 @@ def analyze_photocards(data_file):
             'transaction_count': len(filtered_prices),
             'time_series': time_series,
             'representative_product_id': representative['product_id'],
-            'sample_title': representative['original_title']
+            'sample_title': representative['original_title'],
+            'image_url': representative.get('image_url'),
+            'has_valid_link': has_valid_link
         })
 
     # 거래량 많은 순으로 정렬
     photocard_stats.sort(key=lambda x: x['transaction_count'], reverse=True)
 
-    print(f"\n분석 완료: {len(photocard_stats)}개 포토카드 종류 발견")
+    with_img = sum(1 for p in photocard_stats if p.get('image_url'))
+    print(f"\n분석 완료: {len(photocard_stats)}개 포토카드 종류")
+    if do_validate:
+        valid_count = sum(1 for p in photocard_stats if p.get('has_valid_link'))
+        print(f"  → 상품 링크 검증: {valid_count}/{len(photocard_stats)}개 (존재하는 상품만 표시)")
+    print(f"  → 이미지 URL: {with_img}개")
     return photocard_stats
 
 def generate_html(photocard_stats, output_file):
@@ -314,6 +387,34 @@ def generate_html(photocard_stats, output_file):
         .photocard:hover {{
             transform: translateY(-5px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }}
+
+        .photocard-thumb-wrap {{
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            background: #f5f5f8;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }}
+
+        .photocard-thumb {{
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }}
+
+        .photocard-thumb-wrap .placeholder {{
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #bbb;
+            font-size: 0.85em;
+            background: #f5f5f8;
         }}
 
         .photocard-header {{
@@ -693,10 +794,17 @@ def generate_html(photocard_stats, output_file):
             chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
             types_str = ','.join(pc['types'])
             search_text = f"{pc['official_name']} {pc['album']} {types_str}".lower()
+            has_link = pc.get('has_valid_link', True)
             product_url = f"https://globalbunjang.com/product/{pc['representative_product_id']}"
+            img_url = pc.get('image_url') or ''
+            if img_url:
+                thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">이미지 없음</div></div>'
+            else:
+                thumb_block = '<div class="photocard-thumb-wrap"><div class="placeholder">이미지 없음</div></div>'
 
             html += f"""
             <div class="photocard" data-member="{member}" data-types="{types_str}" data-search="{search_text}" data-product-id="{pc['representative_product_id']}">
+                {thumb_block}
                 <div class="photocard-header">
                     <div class="photocard-name">{pc['official_name']}</div>
                     <div class="photocard-meta">
@@ -720,7 +828,7 @@ def generate_html(photocard_stats, output_file):
 
                 <div class="sample-title">
                     예시: {pc['sample_title'][:50]}...
-                    <a class="sample-link" href="{product_url}" target="_blank" rel="noopener">상품 보러가기 →</a>
+                    {f'<a class="sample-link" href="{product_url}" target="_blank" rel="noopener">상품 보러가기 →</a>' if has_link else ''}
                 </div>
             </div>
 """
@@ -879,15 +987,23 @@ def generate_html(photocard_stats, output_file):
     print(f"\nHTML 파일 생성 완료: {output_file}")
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='BTS 포토카드 시세 분석')
+    parser.add_argument('--skip-validate', action='store_true',
+                        help='링크 검증 생략 (빠르지만 삭제된 상품 링크가 포함될 수 있음)')
+    args = parser.parse_args()
+
     data_file = '/Users/mosa/Documents/BGZT/Auto/SlangCrawling/bts_photocard_data.json'
-    output_file = '/Users/mosa/Documents/BGZT/Auto/SlangCrawling/fandom_dict/bts_photocard_market.html'
+    output_file = '/Users/mosa/Documents/BGZT/Auto/SlangCrawling/bts_photocard_market.html'
 
     print("=" * 60)
     print("BTS 포토카드 시세 분석 시작")
     print("=" * 60)
 
+    if args.skip_validate:
+        print("[주의] --skip-validate: 링크 검증 생략 → 일부 '상품 보러가기'가 삭제된 상품일 수 있습니다.\n")
+
     # 데이터 분석
-    photocard_stats = analyze_photocards(data_file)
+    photocard_stats = analyze_photocards(data_file, validate_links=not args.skip_validate)
 
     # HTML 생성
     generate_html(photocard_stats, output_file)
