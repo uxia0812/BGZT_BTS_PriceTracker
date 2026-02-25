@@ -91,14 +91,36 @@ def build_bunjang_image_url(product_id, created_date_str, modified_date_str, ima
     return None
 
 
-def validate_product_url(url, timeout=6):
-    """상품 페이지 존재 여부 확인 (HEAD 요청)"""
+# 삭제/판매완료 페이지 판별용 키워드 (이 중 하나라도 있으면 해당 상품은 표시하지 않음)
+# - deleted: "This item is no longer available"
+# - sold: "Sold out on Bunjang" / "Sold on Bunjang" (페이지 제목)
+# - EmptyCase: 번장 빈 상품 UI
+_AVAILABILITY_BAD_KEYWORDS = (
+    'this item is no longer available',
+    'sold out on bunjang',
+    'sold on bunjang',
+    'emptycase',
+    'product-error/deleted',
+)
+
+
+def validate_product_url(url, timeout=8):
+    """상품 페이지 존재 및 판매중 여부 확인 (실제 PDP로 이동 가능한 상품만 True)"""
     if not HAS_REQUESTS:
         return True  # 검증 불가 시 일단 표시
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (compatible; FandomDictBot/1.0)'}
-        r = requests.head(url, timeout=timeout, allow_redirects=True, headers=headers)
-        return r.status_code == 200
+        r = requests.get(url, timeout=timeout, allow_redirects=True, headers=headers)
+        if r.status_code != 200:
+            return False
+        # redirect된 경우 (예: product-error/deleted)
+        if 'product-error' in r.url:
+            return False
+        text = (r.text or '').lower()
+        for kw in _AVAILABILITY_BAD_KEYWORDS:
+            if kw in text:
+                return False
+        return True
     except Exception:
         return False
 
