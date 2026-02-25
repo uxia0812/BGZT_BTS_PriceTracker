@@ -92,11 +92,13 @@ def build_bunjang_image_url(product_id, created_date_str, modified_date_str, ima
 
 
 # 삭제/판매완료 페이지 판별용 키워드 (이 중 하나라도 있으면 해당 상품은 표시하지 않음)
-# - deleted: "This item is no longer available"
+# - deleted: "This item is no longer available", "it may have been removed"
 # - sold: "Sold out on Bunjang" / "Sold on Bunjang" (페이지 제목)
 # - EmptyCase: 번장 빈 상품 UI
 _AVAILABILITY_BAD_KEYWORDS = (
     'this item is no longer available',
+    'it may have been removed',
+    'check out other products or go back to home',
     'sold out on bunjang',
     'sold on bunjang',
     'emptycase',
@@ -229,9 +231,11 @@ def analyze_photocards(data_file, validate_links=True):
         if not filtered_prices:
             filtered_prices = prices
         median_val = calculate_median_price(filtered_prices)
+        # 1) 썸네일(이미지) 있는 상품 우선, 2) 중앙가 대비 가격 근접 순
+        # → 검증 통과한 상품 중 썸네일+링크 동일한(판매중) 상품 우선 선택
         candidates = sorted(
             [p for p in products if p['price'] > 0],
-            key=lambda x: abs(x['price'] - median_val)
+            key=lambda x: (0 if x.get('image_url') else 1, abs(x['price'] - median_val))
         )
         representative = candidates[0]
         has_valid_link = not do_validate  # 검증 생략 시 링크 표시
