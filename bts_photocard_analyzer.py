@@ -6,6 +6,7 @@ import json
 import re
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 import statistics
 
 try:
@@ -55,6 +56,58 @@ MEMBER_ORDER = ['RM', '진', '슈가', '제이홉', '지민', '뷔', '정국', '
 
 # 포카 타입 필터 순서 (필요한 타입만, 실제 데이터에 있는 것 우선)
 TYPE_ORDER = ['일반포카', '앨포', '예판포', '미공포', '공포', '위버스포', '럭드포', '시그포', '팬싸포', '트포', '미니포', '비공포']
+
+# 영문 타입 표시명 (data-type는 한글 유지, 필터 표시만 영어)
+TYPE_EN = {
+    '일반포카': 'Regular', '앨포': 'Album', '예판포': 'Pre-order', '미공포': 'Unlisted',
+    '공포': 'Official', '위버스포': 'Weverse', '럭드포': 'Lucky Draw', '시그포': 'Signed',
+    '팬싸포': 'Fan sign', '트포': 'Ticket', '미니포': 'Mini', '비공포': 'Unofficial',
+}
+
+# KRW → USD 환율 (빌드 시점 기준)
+KRW_TO_USD = 1350
+
+# 로케일별 UI 문자열
+STRINGS = {
+    'ko': {
+        'title': 'BTS 포토카드 시세 분석',
+        'subtitle': '글로벌번장 실거래 데이터 기반 시세 정보',
+        'photocard_types': '포토카드 종류',
+        'total_trades': '총 거래 수',
+        'avg_price': '평균 시세',
+        'search_placeholder': '포토카드명, 앨범, 타입으로 검색...',
+        'all': '전체',
+        'type_filter': '포카 종류',
+        'type_filter_title': '타입 필터',
+        'min': '최저',
+        'max': '최고',
+        'trades_count': '거래 {0}건',
+        'example': '예시',
+        'view_product': '상품 보러가기 →',
+        'no_image': '이미지 없음',
+        'items': '개',
+        'currency': '원',
+    },
+    'en': {
+        'title': 'BTS Photocard Price Guide',
+        'subtitle': 'Market prices based on Bunjang Global transaction data',
+        'photocard_types': 'Photocard types',
+        'total_trades': 'Total trades',
+        'avg_price': 'Avg price',
+        'search_placeholder': 'Search by name, album, type...',
+        'all': 'All',
+        'type_filter': 'PC Type',
+        'type_filter_title': 'Type filter',
+        'min': 'Low',
+        'max': 'High',
+        'trades_count': '{0} deals',
+        'example': 'e.g.',
+        'view_product': 'View product →',
+        'no_image': 'No image',
+        'items': '',
+        'currency': 'USD',
+    },
+}
 
 # 특수 포카 타입
 SPECIAL_TYPES = {
@@ -298,8 +351,18 @@ def analyze_photocards(data_file, validate_links=True):
     print(f"  → 이미지 URL: {with_img}개")
     return photocard_stats
 
-def generate_html(photocard_stats, output_file):
-    """HTML 웹페이지 생성"""
+def _format_price(val, locale):
+    """가격 포맷 (원 또는 USD)"""
+    if locale == 'en':
+        usd = val / KRW_TO_USD
+        return f"${usd:.2f}" if usd >= 1 else f"${usd:.2f}"
+    return f"{int(val):,}원"
+
+
+def generate_html(photocard_stats, output_file, locale='ko'):
+    """HTML 웹페이지 생성 (locale: 'ko' | 'en')"""
+    s = STRINGS[locale]
+    is_en = locale == 'en'
 
     # 멤버별로 그룹화 (순서: MEMBER_ORDER)
     by_member = defaultdict(list)
@@ -312,12 +375,16 @@ def generate_html(photocard_stats, output_file):
         all_types.update(pc['types'])
     type_filters = [t for t in TYPE_ORDER if t in all_types]
 
+    # 평균 시세 (로케일에 따라)
+    avg_val = int(statistics.mean([pc['median_price'] for pc in photocard_stats]))
+    avg_display = _format_price(avg_val, locale)
+
     html = f"""<!DOCTYPE html>
-<html lang="ko">
+<html lang="{'en' if is_en else 'ko'}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTS 포토카드 시세 분석</title>
+    <title>{s['title']}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {{
@@ -749,31 +816,32 @@ def generate_html(photocard_stats, output_file):
 </head>
 <body>
     <div class="header">
-        <h1>BTS 포토카드 시세 분석</h1>
-        <p>글로벌번장 실거래 데이터 기반 시세 정보</p>
+        <p style="text-align:right; margin-bottom:-20px;"><a href="{'../index.html' if is_en else 'en/bts_photocard_market.html'}" style="color:#999; font-size:0.85em;">{'한국어' if is_en else 'English'}</a></p>
+        <h1>{s['title']}</h1>
+        <p>{s['subtitle']}</p>
 
         <div class="stats-summary">
             <div class="stat-box">
                 <div class="number">{len(photocard_stats)}</div>
-                <div class="label">포토카드 종류</div>
+                <div class="label">{s['photocard_types']}</div>
             </div>
             <div class="stat-box">
                 <div class="number">{sum(pc['transaction_count'] for pc in photocard_stats):,}</div>
-                <div class="label">총 거래 수</div>
+                <div class="label">{s['total_trades']}</div>
             </div>
             <div class="stat-box">
-                <div class="number">{int(statistics.mean([pc['median_price'] for pc in photocard_stats])):,}원</div>
-                <div class="label">평균 시세</div>
+                <div class="number">{avg_display}</div>
+                <div class="label">{s['avg_price']}</div>
             </div>
         </div>
 
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="포토카드명, 앨범, 타입으로 검색..." oninput="applyFilters()">
+            <input type="text" id="searchInput" placeholder="{s['search_placeholder']}" oninput="applyFilters()">
         </div>
 
         <div class="member-row">
             <div class="member-chips" id="memberFilters">
-                <button class="filter-btn active" onclick="setMemberFilter('all')">전체</button>
+                <button class="filter-btn active" onclick="setMemberFilter('all')">{s['all']}</button>
 """
 
     # 멤버칩: 전체 → MEMBER_ORDER 순 (단체 마지막)
@@ -781,20 +849,21 @@ def generate_html(photocard_stats, output_file):
         if member in by_member:
             html += f'                <button class="filter-btn" onclick="setMemberFilter(\'{member}\')">{member}</button>\n'
 
-    html += """            </div>
+    html += f"""            </div>
             <div class="type-dropdown-wrap">
                 <button type="button" class="type-dropdown-trigger" id="typeDropdownBtn" onclick="toggleTypeDropdown(event)" aria-expanded="false">
-                    <span>포카 종류</span>
+                    <span>{s['type_filter']}</span>
                     <span class="chevron">▾</span>
                 </button>
                 <div class="type-dropdown-panel" id="typeDropdownPanel">
-                    <div class="type-dropdown-title">타입 필터</div>
+                    <div class="type-dropdown-title">{s['type_filter_title']}</div>
                     <div class="type-grid" id="typeFilters">
-                        <div class="type-option selected" data-type="all" onclick="setTypeFilter('all')">전체</div>
+                        <div class="type-option selected" data-type="all" onclick="setTypeFilter('all')">{s['all']}</div>
 """
 
     for t in type_filters:
-        html += f'                        <div class="type-option" data-type="{t}" onclick="setTypeFilter(\'{t}\')">{t}</div>\n'
+        label = TYPE_EN.get(t, t) if is_en else t
+        html += f'                        <div class="type-option" data-type="{t}" onclick="setTypeFilter(\'{t}\')">{label}</div>\n'
 
     html += """                    </div>
                 </div>
@@ -806,13 +875,15 @@ def generate_html(photocard_stats, output_file):
 """
 
     # 멤버별 섹션 생성 (MEMBER_ORDER 순)
+    items_suffix = s['items']
     for member in MEMBER_ORDER:
         if member not in by_member:
             continue
         photocards = by_member[member]
+        count_label = f"({len(photocards)}{items_suffix})" if items_suffix else f"({len(photocards)})"
         html += f"""
     <div class="member-section" data-member="{member}">
-        <h2 class="member-title">{member} ({len(photocards)}개)</h2>
+        <h2 class="member-title">{member} {count_label}</h2>
         <div class="cards-container">
 """
 
@@ -824,9 +895,15 @@ def generate_html(photocard_stats, output_file):
             product_url = f"https://globalbunjang.com/product/{pc['representative_product_id']}"
             img_url = pc.get('image_url') or ''
             if img_url:
-                thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">이미지 없음</div></div>'
+                thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">{s["no_image"]}</div></div>'
             else:
-                thumb_block = '<div class="photocard-thumb-wrap"><div class="placeholder">이미지 없음</div></div>'
+                thumb_block = f'<div class="photocard-thumb-wrap"><div class="placeholder">{s["no_image"]}</div></div>'
+
+            median_fmt = _format_price(pc['median_price'], locale)
+            min_fmt = _format_price(pc['min_price'], locale)
+            max_fmt = _format_price(pc['max_price'], locale)
+            trades_label = s['trades_count'].format(pc['transaction_count'])
+            view_link = f'<a class="sample-link" href="{product_url}" target="_blank" rel="noopener">{s["view_product"]}</a>' if has_link else ''
 
             html += f"""
             <div class="photocard" data-member="{member}" data-types="{types_str}" data-search="{search_text}" data-product-id="{pc['representative_product_id']}">
@@ -840,12 +917,12 @@ def generate_html(photocard_stats, output_file):
                 </div>
 
                 <div class="price-info">
-                    <div class="median-price">{pc['median_price']:,}원</div>
+                    <div class="median-price">{median_fmt}</div>
                     <div class="price-range">
-                        <span>최저: {pc['min_price']:,}원</span>
-                        <span>최고: {pc['max_price']:,}원</span>
+                        <span>{s['min']}: {min_fmt}</span>
+                        <span>{s['max']}: {max_fmt}</span>
                     </div>
-                    <div class="transaction-count">거래 {pc['transaction_count']}건</div>
+                    <div class="transaction-count">{trades_label}</div>
                 </div>
 
                 <div class="chart-container">
@@ -853,8 +930,8 @@ def generate_html(photocard_stats, output_file):
                 </div>
 
                 <div class="sample-title">
-                    예시: {pc['sample_title'][:50]}...
-                    {f'<a class="sample-link" href="{product_url}" target="_blank" rel="noopener">상품 보러가기 →</a>' if has_link else ''}
+                    {s['example']}: {pc['sample_title'][:50]}...
+                    {view_link}
                 </div>
             </div>
 """
@@ -872,7 +949,7 @@ def generate_html(photocard_stats, output_file):
         const chartData = {
 """
 
-    # 차트 데이터 추가
+    # 차트 데이터 추가 (en일 때 가격을 USD로 변환)
     for member in MEMBER_ORDER:
         if member not in by_member:
             continue
@@ -881,6 +958,8 @@ def generate_html(photocard_stats, output_file):
             chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
             dates = [item['date'] for item in pc['time_series'][-30:]]
             prices = [item['price'] for item in pc['time_series'][-30:]]
+            if is_en:
+                prices = [round(p / KRW_TO_USD, 2) for p in prices]
 
             html += f"""
             '{chart_id}': {{
@@ -889,8 +968,16 @@ def generate_html(photocard_stats, output_file):
             }},
 """
 
+    chart_tick_cb = "function(value) { return '$' + value.toFixed(1); }" if is_en else "function(value) { return (value/1000).toFixed(0) + 'K'; }"
+    chart_tooltip = "return '$' + context.parsed.y.toFixed(2);" if is_en else "return context.parsed.y.toLocaleString() + '원';"
+
     html += """
-        };
+        };"""
+
+    html += """
+
+        const chartTickCb = """ + chart_tick_cb + """;
+        const chartTooltipCb = function(context) { """ + chart_tooltip + """ };
 
         // 차트 생성
         Object.keys(chartData).forEach(chartId => {
@@ -918,9 +1005,7 @@ def generate_html(photocard_stats, output_file):
                             legend: { display: false },
                             tooltip: {
                                 callbacks: {
-                                    label: function(context) {
-                                        return context.parsed.y.toLocaleString() + '원';
-                                    }
+                                    label: chartTooltipCb
                                 }
                             }
                         },
@@ -929,9 +1014,7 @@ def generate_html(photocard_stats, output_file):
                             y: {
                                 display: true,
                                 ticks: {
-                                    callback: function(value) {
-                                        return (value/1000).toFixed(0) + 'K';
-                                    },
+                                    callback: chartTickCb,
                                     font: { size: 10 }
                                 },
                                 grid: { color: 'rgba(0,0,0,0.05)' }
@@ -947,10 +1030,11 @@ def generate_html(photocard_stats, output_file):
         let currentType = 'all';
         const searchInput = document.getElementById('searchInput');
 
+        const allLabel = """ + json.dumps(s['all']) + """;
         function setMemberFilter(member) {
             currentMember = member;
             document.querySelectorAll('#memberFilters .filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent.trim() === (member === 'all' ? '전체' : member));
+                btn.classList.toggle('active', btn.textContent.trim() === (member === 'all' ? allLabel : member));
             });
             applyFilters();
         }
@@ -1016,10 +1100,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BTS 포토카드 시세 분석')
     parser.add_argument('--skip-validate', action='store_true',
                         help='링크 검증 생략 (빠르지만 삭제된 상품 링크가 포함될 수 있음)')
+    parser.add_argument('--locale', choices=['ko', 'en'], default='ko',
+                        help='출력 로케일: ko(한국어+원), en(영어+USD)')
+    parser.add_argument('--all-locales', action='store_true',
+                        help='ko, en 두 버전 모두 생성')
     args = parser.parse_args()
 
-    data_file = '/Users/mosa/Documents/BGZT/Auto/SlangCrawling/bts_photocard_data.json'
-    output_file = '/Users/mosa/Documents/BGZT/Auto/SlangCrawling/bts_photocard_market.html'
+    base_dir = Path(__file__).resolve().parent
+    data_file = base_dir / 'bts_photocard_data.json'
 
     print("=" * 60)
     print("BTS 포토카드 시세 분석 시작")
@@ -1029,11 +1117,26 @@ if __name__ == '__main__':
         print("[주의] --skip-validate: 링크 검증 생략 → 일부 '상품 보러가기'가 삭제된 상품일 수 있습니다.\n")
 
     # 데이터 분석
-    photocard_stats = analyze_photocards(data_file, validate_links=not args.skip_validate)
+    photocard_stats = analyze_photocards(str(data_file), validate_links=not args.skip_validate)
 
     # HTML 생성
-    generate_html(photocard_stats, output_file)
+    if args.all_locales:
+        out_ko = base_dir / 'bts_photocard_market.html'
+        en_dir = base_dir / 'en'
+        en_dir.mkdir(exist_ok=True)
+        out_en = en_dir / 'bts_photocard_market.html'
+        generate_html(photocard_stats, str(out_ko), locale='ko')
+        generate_html(photocard_stats, str(out_en), locale='en')
+        print(f"\n한국어: {out_ko}")
+        print(f"영어:   {out_en}")
+    else:
+        if args.locale == 'en':
+            en_dir = base_dir / 'en'
+            en_dir.mkdir(exist_ok=True)
+            output_file = en_dir / 'bts_photocard_market.html'
+        else:
+            output_file = base_dir / 'bts_photocard_market.html'
+        generate_html(photocard_stats, str(output_file), locale=args.locale)
+        print(f"\n웹페이지: {output_file}")
 
-    print("\n분석 완료!")
-    print(f"분석된 포토카드 종류: {len(photocard_stats)}개")
-    print(f"웹페이지: {output_file}")
+    print(f"\n분석 완료! (포토카드 {len(photocard_stats)}종)")

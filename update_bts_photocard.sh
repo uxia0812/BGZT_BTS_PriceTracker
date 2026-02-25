@@ -18,9 +18,12 @@ if [ -z "$REDASH_API_KEY" ]; then
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M') BTS 포토카드 업데이트 시작"
-python3 fetch_redash_data.py --analyze || exit 1
+python3 fetch_redash_data.py || exit 1
+python3 bts_photocard_analyzer.py --all-locales || exit 1
 
-# index.html 동기화 (배포용)
+# index.html 동기화 (한국어 버전 배포용)
 cp bts_photocard_market.html index.html
+# en/index.html (영어 버전 /en/ 접근용)
+cp en/bts_photocard_market.html en/index.html 2>/dev/null || true
 echo "$(date '+%Y-%m-%d %H:%M') 완료"
 exit 0
