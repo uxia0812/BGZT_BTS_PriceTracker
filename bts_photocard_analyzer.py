@@ -52,7 +52,7 @@ ALBUMS = {
 }
 
 # 멤버 표시 순서 (전체 제외, 단체는 맨 뒤)
-MEMBER_ORDER = ['RM', '진', '슈가', '제이홉', '지민', '뷔', '정국', '단체']
+MEMBER_ORDER = ['뷔', '정국', '진', '지민', 'RM', '슈가', '제이홉', '단체']
 
 # 포카 타입 필터 순서 (필요한 타입만, 실제 데이터에 있는 것 우선)
 TYPE_ORDER = ['일반포카', '앨포', '예판포', '미공포', '공포', '위버스포', '럭드포', '시그포', '팬싸포', '트포', '미니포', '비공포']
@@ -83,7 +83,7 @@ STRINGS = {
         'max': '최고',
         'trades_count': '거래 {0}건',
         'example': '예시',
-        'view_product': '상품 보러가기 →',
+        'chart_click_hint': '클릭 시 상품 페이지로 이동',
         'no_image': '이미지 없음',
         'items': '개',
         'currency': '원',
@@ -102,7 +102,7 @@ STRINGS = {
         'max': 'High',
         'trades_count': '{0} deals',
         'example': 'e.g.',
-        'view_product': 'View product →',
+        'chart_click_hint': 'Click to view product',
         'no_image': 'No image',
         'items': '',
         'currency': 'USD',
@@ -299,7 +299,7 @@ def analyze_photocards(data_file, validate_links=True):
                     has_valid_link = True
                     break
         time_series = [
-            {'date': p['created_date'][:10], 'price': p['price']}
+            {'date': p['created_date'][:10], 'price': p['price'], 'product_id': p['product_id']}
             for p in sorted(products, key=lambda x: x['created_date'])
             if p['price'] > 0
         ]
@@ -891,8 +891,6 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
             types_str = ','.join(pc['types'])
             search_text = f"{pc['official_name']} {pc['album']} {types_str}".lower()
-            has_link = pc.get('has_valid_link', True)
-            product_url = f"https://globalbunjang.com/product/{pc['representative_product_id']}"
             img_url = pc.get('image_url') or ''
             if img_url:
                 thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">{s["no_image"]}</div></div>'
@@ -903,7 +901,6 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             min_fmt = _format_price(pc['min_price'], locale)
             max_fmt = _format_price(pc['max_price'], locale)
             trades_label = s['trades_count'].format(pc['transaction_count'])
-            view_link = f'<a class="sample-link" href="{product_url}" target="_blank" rel="noopener">{s["view_product"]}</a>' if has_link else ''
 
             html += f"""
             <div class="photocard" data-member="{member}" data-types="{types_str}" data-search="{search_text}" data-product-id="{pc['representative_product_id']}">
@@ -931,7 +928,6 @@ def generate_html(photocard_stats, output_file, locale='ko'):
 
                 <div class="sample-title">
                     {s['example']}: {pc['sample_title'][:50]}...
-                    {view_link}
                 </div>
             </div>
 """
@@ -949,27 +945,31 @@ def generate_html(photocard_stats, output_file, locale='ko'):
         const chartData = {
 """
 
-    # 차트 데이터 추가 (en일 때 가격을 USD로 변환)
+    # 차트 데이터 추가 (en일 때 가격을 USD로 변환, 각 포인트별 product URL)
     for member in MEMBER_ORDER:
         if member not in by_member:
             continue
         photocards = by_member[member]
         for pc in photocards[:100]:
             chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
-            dates = [item['date'] for item in pc['time_series'][-30:]]
-            prices = [item['price'] for item in pc['time_series'][-30:]]
+            series = pc['time_series'][-30:]
+            dates = [item['date'] for item in series]
+            prices = [item['price'] for item in series]
+            urls = [f"https://globalbunjang.com/product/{item['product_id']}" for item in series]
             if is_en:
                 prices = [round(p / KRW_TO_USD, 2) for p in prices]
 
             html += f"""
             '{chart_id}': {{
                 labels: {json.dumps(dates)},
-                data: {json.dumps(prices)}
+                data: {json.dumps(prices)},
+                urls: {json.dumps(urls)}
             }},
 """
 
     chart_tick_cb = "function(value) { return '$' + value.toFixed(1); }" if is_en else "function(value) { return (value/1000).toFixed(0) + 'K'; }"
     chart_tooltip = "return '$' + context.parsed.y.toFixed(2);" if is_en else "return context.parsed.y.toLocaleString() + '원';"
+    chart_click_hint = json.dumps(s['chart_click_hint'])
 
     html += """
         };"""
@@ -978,11 +978,13 @@ def generate_html(photocard_stats, output_file, locale='ko'):
 
         const chartTickCb = """ + chart_tick_cb + """;
         const chartTooltipCb = function(context) { """ + chart_tooltip + """ };
+        const chartClickHint = """ + chart_click_hint + """;
 
-        // 차트 생성
+        // 차트 생성 (호버 시 가격 + 클릭 유도, 클릭 시 해당 상품 PDP로 이동)
         Object.keys(chartData).forEach(chartId => {
             const ctx = document.getElementById(chartId);
             if (ctx) {
+                ctx.style.cursor = 'pointer';
                 new Chart(ctx, {
                     type: 'line',
                     data: {
@@ -993,19 +995,27 @@ def generate_html(photocard_stats, output_file, locale='ko'):
                             backgroundColor: 'rgba(255, 154, 158, 0.1)',
                             borderWidth: 2,
                             tension: 0.4,
-                            pointRadius: 2,
-                            pointHoverRadius: 5,
+                            pointRadius: 3,
+                            pointHoverRadius: 7,
                             fill: true
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        onClick: (evt, elements, chart) => {
+                            if (elements.length > 0 && chartData[chartId] && chartData[chartId].urls) {
+                                const idx = elements[0].index;
+                                const url = chartData[chartId].urls[idx];
+                                if (url) window.open(url, '_blank');
+                            }
+                        },
                         plugins: {
                             legend: { display: false },
                             tooltip: {
                                 callbacks: {
-                                    label: chartTooltipCb
+                                    label: chartTooltipCb,
+                                    afterLabel: () => chartClickHint
                                 }
                             }
                         },
@@ -1040,6 +1050,7 @@ def generate_html(photocard_stats, output_file, locale='ko'):
         }
 
         function setTypeFilter(type) {
+            if (currentType === type) type = 'all';
             currentType = type;
             document.querySelectorAll('#typeFilters .type-option').forEach(el => {
                 el.classList.toggle('selected', el.dataset.type === type);
