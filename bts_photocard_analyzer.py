@@ -184,6 +184,11 @@ def validate_product_url(url, timeout=8):
         return False
 
 
+def strip_parens(s):
+    """상품명에서 괄호 안 내용 제거 (예: (일반포카), (Regular) 등)"""
+    return re.sub(r'\s*\([^)]*\)', '', s).strip()
+
+
 def extract_member(title):
     """상품명에서 멤버 추출"""
     title_lower = title.lower()
@@ -878,12 +883,12 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             album = pc['album']
             types_list = pc['types']
             if is_en:
-                name_display = f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)}"
+                name_display = strip_parens(f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)}")
                 album_display = ALBUM_EN.get(album, album)
                 tags_display = ''.join(f'<span class="tag">{TYPE_EN.get(t, t)}</span>' for t in types_list)
                 search_text = f"{name_display} {album_display} {' '.join(TYPE_EN.get(t,t) for t in types_list)}".lower()
             else:
-                name_display = pc['official_name']
+                name_display = strip_parens(pc['official_name'])
                 album_display = album
                 tags_display = ''.join(f'<span class="tag">{t}</span>' for t in types_list)
                 search_text = f"{pc['official_name']} {album} {types_str}".lower()
