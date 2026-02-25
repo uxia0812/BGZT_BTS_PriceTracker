@@ -64,6 +64,10 @@ TYPE_EN = {
     '팬싸포': 'Fan sign', '트포': 'Ticket', '미니포': 'Mini', '비공포': 'Unofficial',
 }
 
+# 영문 멤버/앨범 표시명
+MEMBER_EN = {'RM': 'RM', '진': 'Jin', '슈가': 'Suga', '제이홉': 'J-Hope', '지민': 'Jimin', '뷔': 'V', '정국': 'Jungkook', '단체': 'Group'}
+ALBUM_EN = {'기타': 'Etc'}  # 나머지 앨범명은 이미 영문
+
 # KRW → USD 환율 (빌드 시점 기준)
 KRW_TO_USD = 1350
 
@@ -572,15 +576,6 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             margin-top: 15px;
         }}
 
-        .sample-title {{
-            font-size: 0.75em;
-            color: #999;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #f0f0f0;
-            font-style: italic;
-        }}
-
         @media (max-width: 768px) {{
             .header h1 {{
                 font-size: 1.8em;
@@ -683,18 +678,6 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             justify-content: center;
             gap: 10px;
             flex-wrap: wrap;
-        }}
-
-        .sample-link {{
-            display: block;
-            font-size: 0.75em;
-            color: #ff6b9d;
-            margin-top: 6px;
-            text-decoration: none;
-        }}
-
-        .sample-link:hover {{
-            text-decoration: underline;
         }}
 
         .photocard[data-hidden="true"] {{
@@ -847,7 +830,8 @@ def generate_html(photocard_stats, output_file, locale='ko'):
     # 멤버칩: 전체 → MEMBER_ORDER 순 (단체 마지막)
     for member in MEMBER_ORDER:
         if member in by_member:
-            html += f'                <button class="filter-btn" onclick="setMemberFilter(\'{member}\')">{member}</button>\n'
+            chip_label = MEMBER_EN.get(member, member) if is_en else member
+            html += f'                <button class="filter-btn" onclick="setMemberFilter(\'{member}\')">{chip_label}</button>\n'
 
     html += f"""            </div>
             <div class="type-dropdown-wrap">
@@ -880,17 +864,29 @@ def generate_html(photocard_stats, output_file, locale='ko'):
         if member not in by_member:
             continue
         photocards = by_member[member]
+        member_label = MEMBER_EN.get(member, member) if is_en else member
         count_label = f"({len(photocards)}{items_suffix})" if items_suffix else f"({len(photocards)})"
         html += f"""
     <div class="member-section" data-member="{member}">
-        <h2 class="member-title">{member} {count_label}</h2>
+        <h2 class="member-title">{member_label} {count_label}</h2>
         <div class="cards-container">
 """
 
         for pc in photocards[:100]:
             chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
             types_str = ','.join(pc['types'])
-            search_text = f"{pc['official_name']} {pc['album']} {types_str}".lower()
+            album = pc['album']
+            types_list = pc['types']
+            if is_en:
+                name_display = f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)} ({', '.join(TYPE_EN.get(t, t) for t in types_list)})"
+                album_display = ALBUM_EN.get(album, album)
+                tags_display = ''.join(f'<span class="tag">{TYPE_EN.get(t, t)}</span>' for t in types_list)
+                search_text = f"{name_display} {album_display} {' '.join(TYPE_EN.get(t,t) for t in types_list)}".lower()
+            else:
+                name_display = pc['official_name']
+                album_display = album
+                tags_display = ''.join(f'<span class="tag">{t}</span>' for t in types_list)
+                search_text = f"{pc['official_name']} {album} {types_str}".lower()
             img_url = pc.get('image_url') or ''
             if img_url:
                 thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">{s["no_image"]}</div></div>'
@@ -906,10 +902,10 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             <div class="photocard" data-member="{member}" data-types="{types_str}" data-search="{search_text}" data-product-id="{pc['representative_product_id']}">
                 {thumb_block}
                 <div class="photocard-header">
-                    <div class="photocard-name">{pc['official_name']}</div>
+                    <div class="photocard-name">{name_display}</div>
                     <div class="photocard-meta">
-                        <span class="tag">{pc['album']}</span>
-                        {''.join(f'<span class="tag">{t}</span>' for t in pc['types'])}
+                        <span class="tag">{album_display}</span>
+                        {tags_display}
                     </div>
                 </div>
 
@@ -924,10 +920,6 @@ def generate_html(photocard_stats, output_file, locale='ko'):
 
                 <div class="chart-container">
                     <canvas id="{chart_id}"></canvas>
-                </div>
-
-                <div class="sample-title">
-                    {s['example']}: {pc['sample_title'][:50]}...
                 </div>
             </div>
 """
