@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 import statistics
+from difflib import SequenceMatcher
 
 try:
     import requests
@@ -189,6 +190,61 @@ def strip_parens(s):
     return re.sub(r'\s*\([^)]*\)', '', s).strip()
 
 
+def normalize_title_for_comparison(title):
+    """상품명을 비교용으로 정규화 (소문자 변환, 공백/특수문자 제거)"""
+    # 괄호 제거
+    title = strip_parens(title)
+    # 소문자 변환
+    title = title.lower()
+    # 공백 및 특수문자 제거 (한글, 영문, 숫자만 유지)
+    title = re.sub(r'[^\w가-힣]', '', title)
+    return title
+
+
+def calculate_title_similarity(title1, title2):
+    """두 상품명 간의 유사도 계산 (0.0 ~ 1.0)
+
+    Returns:
+        float: 유사도 점수 (0.0 = 완전히 다름, 1.0 = 완전히 동일)
+    """
+    # 정규화
+    norm1 = normalize_title_for_comparison(title1)
+    norm2 = normalize_title_for_comparison(title2)
+
+    # 빈 문자열 처리
+    if not norm1 or not norm2:
+        return 0.0
+
+    # SequenceMatcher로 유사도 계산
+    return SequenceMatcher(None, norm1, norm2).ratio()
+
+
+def extract_product_tokens(title):
+    """상품명에서 핵심 토큰 추출 (멤버, 앨범, 타입 제외한 나머지)"""
+    # 정규화된 제목
+    norm = normalize_title_for_comparison(title)
+
+    # 멤버명 제거
+    for member_keywords in MEMBERS.values():
+        for keyword in member_keywords:
+            norm = norm.replace(keyword.lower().replace('-', ''), '')
+
+    # 앨범명 제거
+    for album_keywords in ALBUMS.values():
+        for keyword in album_keywords:
+            norm = norm.replace(keyword.lower().replace(' ', '').replace(':', ''), '')
+
+    # 타입명 제거
+    for type_keywords in SPECIAL_TYPES.values():
+        for keyword in type_keywords:
+            norm = norm.replace(keyword.lower().replace(' ', ''), '')
+
+    # BTS 제거
+    norm = norm.replace('bts', '').replace('방탄소년단', '')
+
+    return norm.strip()
+
+
 def extract_member(title):
     """상품명에서 멤버 추출"""
     title_lower = title.lower()
@@ -253,8 +309,126 @@ def calculate_median_price(prices):
         return 0
     return statistics.median(prices)
 
+
+def group_products_by_similarity(products, similarity_threshold=0.9):
+    """상품들을 유사도 기반으로 그룹화 (최적화 버전)
+
+    Args:
+        products: 정규화된 상품 리스트
+        similarity_threshold: 동일 상품으로 취급할 유사도 임계값 (기본: 0.9 = 90%)
+
+    Returns:
+        dict: {
+            'exact_groups': [[product1, product2, ...], ...],  # 90% 이상 매칭
+            'similar_groups': [[product1, product2, ...], ...]  # 50-90% 매칭
+        }
+    """
+    if not products:
+        return {'exact_groups': [], 'similar_groups': []}
+
+    # 성능 최적화: 첫 30자가 비슷한 상품끼리만 비교
+    def get_title_prefix(title):
+        """비교를 위한 타이틀 프리픽스 추출"""
+        norm = normalize_title_for_comparison(title)
+        return norm[:30] if len(norm) >= 30 else norm
+
+    # 프리픽스별로 상품 그룹화 (빠른 필터링)
+    prefix_groups = defaultdict(list)
+    for i, prod in enumerate(products):
+        prefix = get_title_prefix(prod['original_title'])
+        prefix_groups[prefix[:15]].append((i, prod))  # 첫 15자로 대분류
+
+    # 이미 그룹에 할당된 상품들 추적
+    assigned_to_exact = set()
+    exact_groups = []
+
+    # 1단계: 90% 이상 매칭 → 동일 상품 그룹
+    for prefix, candidates in prefix_groups.items():
+        if len(candidates) < 2:
+            continue
+
+        for idx, (i, prod1) in enumerate(candidates):
+            if i in assigned_to_exact:
+                continue
+
+            group = [prod1]
+            assigned_to_exact.add(i)
+
+            for j, prod2 in candidates[idx+1:]:
+                if j in assigned_to_exact:
+                    continue
+
+                # 그룹/멤버/앨범이 반드시 일치해야 함
+                if (prod1['member'] != prod2['member'] or
+                    prod1['album'] != prod2['album'] or
+                    set(prod1['types']) != set(prod2['types'])):
+                    continue
+
+                # 상품명 유사도 계산
+                similarity = calculate_title_similarity(
+                    prod1['original_title'],
+                    prod2['original_title']
+                )
+
+                if similarity >= similarity_threshold:
+                    group.append(prod2)
+                    assigned_to_exact.add(j)
+
+            if len(group) >= 2:
+                exact_groups.append(group)
+
+    # 2단계: exact group에 속하지 않은 상품들 중 50-90% 매칭 → 유사 상품 그룹
+    similar_groups = []
+    assigned_to_similar = set()
+
+    # Prefix별로 다시 그룹화 (아직 할당되지 않은 것들만)
+    unassigned_by_prefix = defaultdict(list)
+    for prefix, candidates in prefix_groups.items():
+        for i, prod in candidates:
+            if i not in assigned_to_exact:
+                unassigned_by_prefix[prefix[:10]].append((i, prod))  # 더 넓게 (첫 10자)
+
+    for prefix, candidates in unassigned_by_prefix.items():
+        if len(candidates) < 2:
+            continue
+
+        for idx, (i, prod1) in enumerate(candidates):
+            if i in assigned_to_similar:
+                continue
+
+            group = [prod1]
+            assigned_to_similar.add(i)
+
+            for j, prod2 in candidates[idx+1:]:
+                if j in assigned_to_similar:
+                    continue
+
+                # 그룹/멤버/앨범이 반드시 일치해야 함
+                if (prod1['member'] != prod2['member'] or
+                    prod1['album'] != prod2['album'] or
+                    set(prod1['types']) != set(prod2['types'])):
+                    continue
+
+                # 상품명 유사도 계산
+                similarity = calculate_title_similarity(
+                    prod1['original_title'],
+                    prod2['original_title']
+                )
+
+                if 0.5 <= similarity < similarity_threshold:
+                    group.append(prod2)
+                    assigned_to_similar.add(j)
+
+            if len(group) >= 2:
+                similar_groups.append(group)
+
+    return {
+        'exact_groups': exact_groups,
+        'similar_groups': similar_groups
+    }
+
 def analyze_photocards(data_file, validate_links=True):
-    """포토카드 데이터 분석"""
+    """포토카드 데이터 분석 (유사도 기반 그룹화)"""
     print("데이터 로딩 중...")
     with open(data_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -262,77 +436,89 @@ def analyze_photocards(data_file, validate_links=True):
     rows = data['query_result']['data']['rows']
     print(f"총 {len(rows)}개 상품 발견")
 
-    # 포토카드별로 그룹화
-    photocard_groups = defaultdict(list)
-    total_groups = 0
-
+    # 1단계: 모든 상품을 정규화
+    all_normalized = []
     for row in rows:
         try:
             normalized = normalize_photocard(row)
-            photocard_groups[normalized['id']].append(normalized)
+            all_normalized.append(normalized)
         except Exception as e:
             print(f"처리 오류: {row.get('상품명', 'Unknown')}, {e}")
             continue
 
-    # 각 포토카드별 통계 계산
-    photocard_stats = []
-    group_items = [(k, v) for k, v in photocard_groups.items() if len(v) >= 2]
+    # 2단계: 멤버/앨범/타입 조합별로 대분류
+    print(f"상품명 유사도 기반 그룹화 중...")
+    rough_groups = defaultdict(list)
+    for prod in all_normalized:
+        # 대분류 키: 멤버_앨범_타입들
+        key = f"{prod['member']}_{prod['album']}_{'_'.join(sorted(prod['types']))}"
+        rough_groups[key].append(prod)
+
+    # 3단계: 각 대분류 내에서 유사도 기반 정밀 그룹화
+    exact_photocard_groups = []  # 90% 이상 매칭
+    similar_photocard_groups = []  # 50-90% 매칭
+
+    for products in rough_groups.values():
+        if len(products) < 2:
+            continue
+
+        grouped = group_products_by_similarity(products, similarity_threshold=0.9)
+        exact_photocard_groups.extend(grouped['exact_groups'])
+        similar_photocard_groups.extend(grouped['similar_groups'])
+
+    print(f"  → 동일 상품 그룹 (90% 이상 매칭): {len(exact_photocard_groups)}개")
+    print(f"  → 유사 상품 그룹 (50-90% 매칭): {len(similar_photocard_groups)}개")
+
+    # 4단계: 각 그룹별 통계 계산
     do_validate = validate_links and HAS_REQUESTS
     if do_validate:
         print("상품 링크 검증 중... (실제 존재하는 상품만 표시)")
 
-    def process_group(item):
-        photocard_id, products = item
+    def process_group(products, group_type='exact'):
+        """그룹 통계 계산 및 대표 상품 선정"""
         prices = [p['price'] for p in products if p['price'] > 0]
         if not prices:
             return None
-        q1 = statistics.quantiles(prices, n=4)[0]
-        q3 = statistics.quantiles(prices, n=4)[2]
-        iqr = q3 - q1
-        filtered_prices = [p for p in prices if q1 - 1.5*iqr <= p <= q3 + 1.5*iqr]
-        if not filtered_prices:
+
+        # IQR 기반 이상치 제거
+        if len(prices) >= 4:
+            q1 = statistics.quantiles(prices, n=4)[0]
+            q3 = statistics.quantiles(prices, n=4)[2]
+            iqr = q3 - q1
+            filtered_prices = [p for p in prices if q1 - 1.5*iqr <= p <= q3 + 1.5*iqr]
+            if not filtered_prices:
+                filtered_prices = prices
+        else:
             filtered_prices = prices
+
         median_val = calculate_median_price(filtered_prices)
-        # 1) 썸네일(이미지) 있는 상품 우선, 2) 중앙가 대비 가격 근접 순
-        # → 검증 통과한 상품 중 썸네일+링크 동일한(판매중) 상품 우선 선택
+
+        # 대표 상품 선정: 이미지 있는 것 우선, 중앙가 근접 순
         candidates = sorted(
             [p for p in products if p['price'] > 0],
             key=lambda x: (0 if x.get('image_url') else 1, abs(x['price'] - median_val))
         )
         representative = candidates[0]
-        has_valid_link = not do_validate  # 검증 생략 시 링크 표시
+        has_valid_link = not do_validate
+
         if do_validate:
             for cand in candidates:
                 if validate_product_url(f"https://globalbunjang.com/product/{cand['product_id']}"):
                     representative = cand
                     has_valid_link = True
                     break
+
         time_series = [
             {'date': p['created_date'][:10], 'price': p['price'], 'product_id': p['product_id']}
             for p in sorted(products, key=lambda x: x['created_date'])
             if p['price'] > 0
         ]
-        return (
-            photocard_id, products, representative, has_valid_link,
-            filtered_prices, time_series
-        )
 
-    if do_validate:
-        processed = []
-        with ThreadPoolExecutor(max_workers=12) as ex:
-            futures = {ex.submit(process_group, item): item for item in group_items}
-            for i, fut in enumerate(as_completed(futures)):
-                if (i + 1) % 50 == 0:
-                    print(f"  검증 진행: {i + 1}/{len(group_items)}")
-                result = fut.result()
-                if result:
-                    processed.append(result)
-    else:
-        processed = [r for r in (process_group(it) for it in group_items) if r is not None]
+        # 그룹 ID 생성 (대표 상품 정보 기반)
+        group_id = f"{representative['member']}_{representative['album']}_{'_'.join(representative['types'])}_{representative['product_id']}"
 
-    for photocard_id, products, representative, has_valid_link, filtered_prices, time_series in processed:
-        photocard_stats.append({
-            'id': photocard_id,
+        return {
+            'id': group_id,
             'official_name': representative['official_name'],
             'member': representative['member'],
             'album': representative['album'],
@@ -346,19 +532,60 @@ def analyze_photocards(data_file, validate_links=True):
             'representative_product_id': representative['product_id'],
             'sample_title': representative['original_title'],
             'image_url': representative.get('image_url'),
-            'has_valid_link': has_valid_link
-        })
+            'has_valid_link': has_valid_link,
+            'group_type': group_type  # 'exact' 또는 'similar'
+        }
+
+    # 동일 상품 그룹 처리
+    exact_stats = []
+    if do_validate:
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            futures = {ex.submit(process_group, group, 'exact'): i
+                      for i, group in enumerate(exact_photocard_groups)}
+            for i, fut in enumerate(as_completed(futures)):
+                if (i + 1) % 50 == 0:
+                    print(f"  동일 상품 검증: {i + 1}/{len(exact_photocard_groups)}")
+                result = fut.result()
+                if result:
+                    exact_stats.append(result)
+    else:
+        exact_stats = [process_group(g, 'exact') for g in exact_photocard_groups]
+        exact_stats = [s for s in exact_stats if s is not None]
+
+    # 유사 상품 그룹 처리
+    similar_stats = []
+    if do_validate:
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            futures = {ex.submit(process_group, group, 'similar'): i
+                      for i, group in enumerate(similar_photocard_groups)}
+            for i, fut in enumerate(as_completed(futures)):
+                if (i + 1) % 50 == 0:
+                    print(f"  유사 상품 검증: {i + 1}/{len(similar_photocard_groups)}")
+                result = fut.result()
+                if result:
+                    similar_stats.append(result)
+    else:
+        similar_stats = [process_group(g, 'similar') for g in similar_photocard_groups]
+        similar_stats = [s for s in similar_stats if s is not None]
 
     # 거래량 많은 순으로 정렬
-    photocard_stats.sort(key=lambda x: x['transaction_count'], reverse=True)
+    exact_stats.sort(key=lambda x: x['transaction_count'], reverse=True)
+    similar_stats.sort(key=lambda x: x['transaction_count'], reverse=True)
 
-    with_img = sum(1 for p in photocard_stats if p.get('image_url'))
-    print(f"\n분석 완료: {len(photocard_stats)}개 포토카드 종류")
+    with_img_exact = sum(1 for p in exact_stats if p.get('image_url'))
+    with_img_similar = sum(1 for p in similar_stats if p.get('image_url'))
+
+    print(f"\n분석 완료:")
+    print(f"  → 동일 상품: {len(exact_stats)}개 (이미지: {with_img_exact}개)")
+    print(f"  → 유사 상품: {len(similar_stats)}개 (이미지: {with_img_similar}개)")
+
     if do_validate:
-        valid_count = sum(1 for p in photocard_stats if p.get('has_valid_link'))
-        print(f"  → 상품 링크 검증: {valid_count}/{len(photocard_stats)}개 (존재하는 상품만 표시)")
-    print(f"  → 이미지 URL: {with_img}개")
-    return photocard_stats
+        valid_exact = sum(1 for p in exact_stats if p.get('has_valid_link'))
+        valid_similar = sum(1 for p in similar_stats if p.get('has_valid_link'))
+        print(f"  → 링크 검증: 동일 {valid_exact}/{len(exact_stats)}개, 유사 {valid_similar}/{len(similar_stats)}개")
+
+    # exact와 similar를 합쳐서 반환 (exact가 앞에)
+    return {'exact': exact_stats, 'similar': similar_stats}
 
 def _format_price(val, locale):
     """가격 포맷 (원 또는 USD)"""
@@ -368,25 +595,44 @@ def _format_price(val, locale):
     return f"{int(val):,}원"
 
 
-def generate_html(photocard_stats, output_file, locale='ko'):
-    """HTML 웹페이지 생성 (locale: 'ko' | 'en')"""
+def generate_html(photocard_stats_dict, output_file, locale='ko'):
+    """HTML 웹페이지 생성 (locale: 'ko' | 'en')
+
+    Args:
+        photocard_stats_dict: {'exact': [...], 'similar': [...]} 형식의 딕셔너리
+        output_file: 출력 HTML 파일 경로
+        locale: 'ko' 또는 'en'
+    """
     s = STRINGS[locale]
     is_en = locale == 'en'
 
+    # exact와 similar 리스트 분리
+    exact_stats = photocard_stats_dict.get('exact', [])
+    similar_stats = photocard_stats_dict.get('similar', [])
+    all_stats = exact_stats + similar_stats
+
     # 멤버별로 그룹화 (순서: MEMBER_ORDER)
-    by_member = defaultdict(list)
-    for pc in photocard_stats:
-        by_member[pc['member']].append(pc)
+    by_member_exact = defaultdict(list)
+    by_member_similar = defaultdict(list)
+
+    for pc in exact_stats:
+        by_member_exact[pc['member']].append(pc)
+
+    for pc in similar_stats:
+        by_member_similar[pc['member']].append(pc)
 
     # 실제 데이터에 있는 타입만 수집
     all_types = set()
-    for pc in photocard_stats:
+    for pc in all_stats:
         all_types.update(pc['types'])
     type_filters = [t for t in TYPE_ORDER if t in all_types]
 
     # 평균 시세 (로케일에 따라)
-    avg_val = int(statistics.mean([pc['median_price'] for pc in photocard_stats]))
-    avg_display = _format_price(avg_val, locale)
+    if all_stats:
+        avg_val = int(statistics.mean([pc['median_price'] for pc in all_stats]))
+        avg_display = _format_price(avg_val, locale)
+    else:
+        avg_display = _format_price(0, locale)
 
     html = f"""<!DOCTYPE html>
 <html lang="{'en' if is_en else 'ko'}">
@@ -810,11 +1056,15 @@ def generate_html(photocard_stats, output_file, locale='ko'):
 
         <div class="stats-summary">
             <div class="stat-box">
-                <div class="number">{len(photocard_stats)}</div>
-                <div class="label">{s['photocard_types']}</div>
+                <div class="number">{len(exact_stats)}</div>
+                <div class="label">{'Exact Matches' if is_en else '동일 상품'}</div>
             </div>
             <div class="stat-box">
-                <div class="number">{sum(pc['transaction_count'] for pc in photocard_stats):,}</div>
+                <div class="number">{len(similar_stats)}</div>
+                <div class="label">{'Similar Cards' if is_en else '유사 상품'}</div>
+            </div>
+            <div class="stat-box">
+                <div class="number">{sum(pc['transaction_count'] for pc in all_stats):,}</div>
                 <div class="label">{s['total_trades']}</div>
             </div>
             <div class="stat-box">
@@ -834,7 +1084,7 @@ def generate_html(photocard_stats, output_file, locale='ko'):
 
     # 멤버칩: 전체 → MEMBER_ORDER 순 (단체 마지막)
     for member in MEMBER_ORDER:
-        if member in by_member:
+        if member in by_member_exact or member in by_member_similar:
             chip_label = MEMBER_EN.get(member, member) if is_en else member
             html += f'                <button class="filter-btn" onclick="setMemberFilter(\'{member}\')">{chip_label}</button>\n'
 
@@ -863,54 +1113,49 @@ def generate_html(photocard_stats, output_file, locale='ko'):
     <div id="content">
 """
 
-    # 멤버별 섹션 생성 (MEMBER_ORDER 순)
-    items_suffix = s['items']
-    for member in MEMBER_ORDER:
-        if member not in by_member:
-            continue
-        photocards = by_member[member]
-        member_label = MEMBER_EN.get(member, member) if is_en else member
-        count_label = f"({len(photocards)}{items_suffix})" if items_suffix else f"({len(photocards)})"
-        html += f"""
-    <div class="member-section" data-member="{member}">
-        <h2 class="member-title">{member_label} {count_label}</h2>
-        <div class="cards-container">
-"""
+    # 카드 렌더링 헬퍼 함수
+    def render_photocard(pc, member, group_type='exact'):
+        """포토카드 HTML 생성"""
+        chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
+        types_str = ','.join(pc['types'])
+        album = pc['album']
+        types_list = pc['types']
+        if is_en:
+            name_display = strip_parens(f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)}")
+            album_display = ALBUM_EN.get(album, album)
+            tags_display = ''.join(f'<span class="tag">{TYPE_EN.get(t, t)}</span>' for t in types_list)
+            search_text = f"{name_display} {album_display} {' '.join(TYPE_EN.get(t,t) for t in types_list)}".lower()
+        else:
+            name_display = strip_parens(pc['official_name'])
+            album_display = album
+            tags_display = ''.join(f'<span class="tag">{t}</span>' for t in types_list)
+            search_text = f"{pc['official_name']} {album} {types_str}".lower()
+        img_url = pc.get('image_url') or ''
+        if img_url:
+            thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">{s["no_image"]}</div></div>'
+        else:
+            thumb_block = f'<div class="photocard-thumb-wrap"><div class="placeholder">{s["no_image"]}</div></div>'
 
-        for pc in photocards[:100]:
-            chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
-            types_str = ','.join(pc['types'])
-            album = pc['album']
-            types_list = pc['types']
-            if is_en:
-                name_display = strip_parens(f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)}")
-                album_display = ALBUM_EN.get(album, album)
-                tags_display = ''.join(f'<span class="tag">{TYPE_EN.get(t, t)}</span>' for t in types_list)
-                search_text = f"{name_display} {album_display} {' '.join(TYPE_EN.get(t,t) for t in types_list)}".lower()
-            else:
-                name_display = strip_parens(pc['official_name'])
-                album_display = album
-                tags_display = ''.join(f'<span class="tag">{t}</span>' for t in types_list)
-                search_text = f"{pc['official_name']} {album} {types_str}".lower()
-            img_url = pc.get('image_url') or ''
-            if img_url:
-                thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">{s["no_image"]}</div></div>'
-            else:
-                thumb_block = f'<div class="photocard-thumb-wrap"><div class="placeholder">{s["no_image"]}</div></div>'
+        median_fmt = _format_price(pc['median_price'], locale)
+        min_fmt = _format_price(pc['min_price'], locale)
+        max_fmt = _format_price(pc['max_price'], locale)
+        trades_label = s['trades_count'].format(pc['transaction_count'])
 
-            median_fmt = _format_price(pc['median_price'], locale)
-            min_fmt = _format_price(pc['min_price'], locale)
-            max_fmt = _format_price(pc['max_price'], locale)
-            trades_label = s['trades_count'].format(pc['transaction_count'])
+        # 유사 상품일 경우 시각적 구분
+        group_badge = ''
+        if group_type == 'similar':
+            badge_text = 'Similar' if is_en else '유사'
+            group_badge = f'<span class="tag" style="background: #e8ecff; color: #6b7fd7;">{badge_text}</span>'
 
-            html += f"""
-            <div class="photocard" data-member="{member}" data-types="{types_str}" data-search="{search_text}" data-product-id="{pc['representative_product_id']}">
+        return f"""
+            <div class="photocard" data-member="{member}" data-types="{types_str}" data-search="{search_text}" data-product-id="{pc['representative_product_id']}" data-group-type="{group_type}">
                 {thumb_block}
                 <div class="photocard-header">
                     <div class="photocard-name">{name_display}</div>
                     <div class="photocard-meta">
                         <span class="tag">{album_display}</span>
                         {tags_display}
+                        {group_badge}
                     </div>
                 </div>
 
@@ -929,8 +1174,53 @@ def generate_html(photocard_stats, output_file, locale='ko'):
             </div>
 """
 
-        html += """
+    # 멤버별 섹션 생성 (MEMBER_ORDER 순)
+    items_suffix = s['items']
+    for member in MEMBER_ORDER:
+        exact_cards = by_member_exact.get(member, [])
+        similar_cards = by_member_similar.get(member, [])
+
+        if not exact_cards and not similar_cards:
+            continue
+
+        total_count = len(exact_cards) + len(similar_cards)
+        member_label = MEMBER_EN.get(member, member) if is_en else member
+        count_label = f"({total_count}{items_suffix})" if items_suffix else f"({total_count})"
+
+        html += f"""
+    <div class="member-section" data-member="{member}">
+        <h2 class="member-title">{member_label} {count_label}</h2>
+"""
+
+        # 동일 상품 섹션
+        if exact_cards:
+            exact_label = 'Exact Matches' if is_en else '동일 상품'
+            html += f"""
+        <h3 style="color: #666; font-size: 1.2em; margin: 20px 0 15px 10px;">{exact_label} ({len(exact_cards)}{items_suffix if items_suffix else ''})</h3>
+        <div class="cards-container">
+"""
+            for pc in exact_cards[:100]:
+                html += render_photocard(pc, member, 'exact')
+
+            html += """
         </div>
+"""
+
+        # 유사 상품 섹션
+        if similar_cards:
+            similar_label = 'Similar Cards' if is_en else '유사 상품'
+            html += f"""
+        <h3 style="color: #6b7fd7; font-size: 1.2em; margin: 30px 0 15px 10px;">{similar_label} ({len(similar_cards)}{items_suffix if items_suffix else ''})</h3>
+        <div class="cards-container">
+"""
+            for pc in similar_cards[:100]:
+                html += render_photocard(pc, member, 'similar')
+
+            html += """
+        </div>
+"""
+
+        html += """
     </div>
 """
 
@@ -944,10 +1234,11 @@ def generate_html(photocard_stats, output_file, locale='ko'):
 
     # 차트 데이터 추가 (en일 때 가격을 USD로 변환, 각 포인트별 product URL)
     for member in MEMBER_ORDER:
-        if member not in by_member:
-            continue
-        photocards = by_member[member]
-        for pc in photocards[:100]:
+        exact_cards = by_member_exact.get(member, [])
+        similar_cards = by_member_similar.get(member, [])
+        all_cards = exact_cards + similar_cards
+
+        for pc in all_cards[:200]:  # exact + similar 합쳐서 처리
             chart_id = f"chart_{pc['id'].replace(' ', '_').replace('(', '').replace(')', '').replace(',', '')}"
             series = pc['time_series'][-30:]
             dates = [item['date'] for item in series]
@@ -1125,7 +1416,7 @@ if __name__ == '__main__':
         print("[주의] --skip-validate: 링크 검증 생략 → 일부 '상품 보러가기'가 삭제된 상품일 수 있습니다.\n")
 
     # 데이터 분석
-    photocard_stats = analyze_photocards(str(data_file), validate_links=not args.skip_validate)
+    photocard_stats_dict = analyze_photocards(str(data_file), validate_links=not args.skip_validate)
 
     # HTML 생성
     if args.all_locales:
@@ -1133,8 +1424,8 @@ if __name__ == '__main__':
         en_dir = base_dir / 'en'
         en_dir.mkdir(exist_ok=True)
         out_en = en_dir / 'bts_photocard_market.html'
-        generate_html(photocard_stats, str(out_ko), locale='ko')
-        generate_html(photocard_stats, str(out_en), locale='en')
+        generate_html(photocard_stats_dict, str(out_ko), locale='ko')
+        generate_html(photocard_stats_dict, str(out_en), locale='en')
         print(f"\n한국어: {out_ko}")
         print(f"영어:   {out_en}")
     else:
@@ -1144,7 +1435,8 @@ if __name__ == '__main__':
             output_file = en_dir / 'bts_photocard_market.html'
         else:
             output_file = base_dir / 'bts_photocard_market.html'
-        generate_html(photocard_stats, str(output_file), locale=args.locale)
+        generate_html(photocard_stats_dict, str(output_file), locale=args.locale)
         print(f"\n웹페이지: {output_file}")
 
-    print(f"\n분석 완료! (포토카드 {len(photocard_stats)}종)")
+    total_cards = len(photocard_stats_dict.get('exact', [])) + len(photocard_stats_dict.get('similar', []))
+    print(f"\n분석 완료! (총 {total_cards}종: 동일 {len(photocard_stats_dict.get('exact', []))}종, 유사 {len(photocard_stats_dict.get('similar', []))}종)")
