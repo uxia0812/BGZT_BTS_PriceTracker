@@ -129,6 +129,26 @@ SPECIAL_TYPES = {
     '미니포': ['미니포토'],
 }
 
+# 이벤트/행사 키워드
+EVENT_KEYWORDS = {
+    '일본콘서트': ['일본콘서트', '일콘', 'japan concert', 'japanese concert'],
+    '일본': ['일본', 'japan', 'jpn'],
+    '콘서트': ['콘서트', 'concert', '공연'],
+    '투어': ['투어', 'tour', 'world tour'],
+    '머스터': ['머스터', 'muster', '팬미팅'],
+    '페스타': ['페스타', 'festa'],
+    '팬미팅': ['팬미팅', 'fanmeeting', 'fan meeting'],
+    '페스티벌': ['페스티벌', 'festival'],
+}
+
+# 시즌/패키지 키워드
+SEASON_KEYWORDS = {
+    '시즌그리팅': ['시즌그리팅', 'sg', "season's greetings", 'seasons greetings'],
+    '윈터패키지': ['윈터패키지', '윈패', 'winter package', 'winter pkg'],
+    '서머패키지': ['서머패키지', '썸패', 'summer package', 'summer pkg'],
+    '썸머패키지': ['썸머', 'summer'],
+}
+
 def build_bunjang_image_url(product_id, created_date_str, modified_date_str, image_count):
     """글로벌번장 이미지 URL 구성 (상품등록일자/수정일시 기반)"""
     if not image_count or image_count < 1:
@@ -274,15 +294,75 @@ def extract_special_type(title):
                 break
     return types if types else ['일반포카']
 
+
+def extract_event(title):
+    """이벤트/행사 추출"""
+    title_lower = title.lower()
+    events = []
+    for event_name, keywords in EVENT_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword in title_lower:
+                events.append(event_name)
+                break
+    return events
+
+
+def extract_season(title):
+    """시즌/패키지 추출"""
+    title_lower = title.lower()
+    seasons = []
+    for season_name, keywords in SEASON_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword in title_lower:
+                seasons.append(season_name)
+                break
+    return seasons
+
+
+def extract_version_number(title):
+    """버전/번호 추출 (01, #1, ver.1 등)"""
+    import re
+    title_lower = title.lower()
+
+    # 패턴들
+    patterns = [
+        r'ver\.?\s*(\d+)',  # ver.1, ver 1, ver1
+        r'version\s*(\d+)',  # version 1
+        r'버전\s*(\d+)',  # 버전 1
+        r'#\s*(\d+)',  # #1, # 1
+        r'\b(\d{2})\b',  # 01, 02 (2자리 숫자)
+        r'no\.?\s*(\d+)',  # no.1, no 1
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, title_lower)
+        if match:
+            return match.group(1).zfill(2)  # 2자리로 통일 (1 -> 01)
+
+    return None
+
 def normalize_photocard(product):
-    """포토카드 정보를 정규화"""
+    """포토카드 정보를 정규화 (세밀한 특징 추출)"""
     title = product['상품명']
     member = extract_member(title)
     album = extract_album(title)
     special_types = extract_special_type(title)
+    events = extract_event(title)  # 새로 추가
+    seasons = extract_season(title)  # 새로 추가
+    version = extract_version_number(title)  # 새로 추가
 
-    # 포카 ID 생성 (멤버 + 앨범 + 타입)
-    photocard_id = f"{member}_{album}_{'_'.join(special_types)}"
+    # 포카 ID 생성 (멤버 + 앨범 + 타입 + 이벤트 + 시즌 + 버전)
+    # 이벤트와 시즌도 ID에 포함시켜 세밀하게 구분
+    id_parts = [member, album]
+    id_parts.extend(sorted(special_types))
+    if events:
+        id_parts.extend(sorted(events))
+    if seasons:
+        id_parts.extend(sorted(seasons))
+    if version:
+        id_parts.append(f"ver{version}")
+
+    photocard_id = '_'.join(id_parts)
     product_id = product['상품id']
     created = product.get('상품등록일자') or ''
     modified = product.get('수정일시') or ''
@@ -294,6 +374,9 @@ def normalize_photocard(product):
         'member': member,
         'album': album,
         'types': special_types,
+        'events': events,  # 새로 추가
+        'seasons': seasons,  # 새로 추가
+        'version': version,  # 새로 추가
         'official_name': f"BTS {member} - {album}",
         'original_title': title,
         'price': product['상품가격'],
@@ -358,10 +441,13 @@ def group_products_by_similarity(products, similarity_threshold=0.9):
                 if j in assigned_to_exact:
                     continue
 
-                # 그룹/멤버/앨범이 반드시 일치해야 함
+                # 그룹/멤버/앨범/타입/이벤트/시즌/버전이 반드시 일치해야 함
                 if (prod1['member'] != prod2['member'] or
                     prod1['album'] != prod2['album'] or
-                    set(prod1['types']) != set(prod2['types'])):
+                    set(prod1['types']) != set(prod2['types']) or
+                    set(prod1.get('events', [])) != set(prod2.get('events', [])) or
+                    set(prod1.get('seasons', [])) != set(prod2.get('seasons', [])) or
+                    prod1.get('version') != prod2.get('version')):
                     continue
 
                 # 상품명 유사도 계산
@@ -403,10 +489,13 @@ def group_products_by_similarity(products, similarity_threshold=0.9):
                 if j in assigned_to_similar:
                     continue
 
-                # 그룹/멤버/앨범이 반드시 일치해야 함
+                # 그룹/멤버/앨범/타입/이벤트/시즌/버전이 반드시 일치해야 함
                 if (prod1['member'] != prod2['member'] or
                     prod1['album'] != prod2['album'] or
-                    set(prod1['types']) != set(prod2['types'])):
+                    set(prod1['types']) != set(prod2['types']) or
+                    set(prod1.get('events', [])) != set(prod2.get('events', [])) or
+                    set(prod1.get('seasons', [])) != set(prod2.get('seasons', [])) or
+                    prod1.get('version') != prod2.get('version')):
                     continue
 
                 # 상품명 유사도 계산
@@ -446,12 +535,19 @@ def analyze_photocards(data_file, validate_links=True):
             print(f"처리 오류: {row.get('상품명', 'Unknown')}, {e}")
             continue
 
-    # 2단계: 멤버/앨범/타입 조합별로 대분류
+    # 2단계: 멤버/앨범/타입/이벤트/시즌 조합별로 대분류
     print(f"상품명 유사도 기반 그룹화 중...")
     rough_groups = defaultdict(list)
     for prod in all_normalized:
-        # 대분류 키: 멤버_앨범_타입들
-        key = f"{prod['member']}_{prod['album']}_{'_'.join(sorted(prod['types']))}"
+        # 대분류 키: 멤버_앨범_타입들_이벤트들_시즌들
+        key_parts = [prod['member'], prod['album']]
+        key_parts.extend(sorted(prod['types']))
+        if prod.get('events'):
+            key_parts.extend(sorted(prod['events']))
+        if prod.get('seasons'):
+            key_parts.extend(sorted(prod['seasons']))
+        # 버전은 같은 앨범 내에서도 여러 버전이 있을 수 있으므로 대분류에는 포함 안 함
+        key = '_'.join(key_parts)
         rough_groups[key].append(prod)
 
     # 3단계: 각 대분류 내에서 유사도 기반 정밀 그룹화
@@ -1120,16 +1216,34 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
         types_str = ','.join(pc['types'])
         album = pc['album']
         types_list = pc['types']
+        events_list = pc.get('events', [])
+        seasons_list = pc.get('seasons', [])
+        version = pc.get('version')
+
         if is_en:
             name_display = strip_parens(f"BTS {MEMBER_EN.get(member, member)} - {ALBUM_EN.get(album, album)}")
             album_display = ALBUM_EN.get(album, album)
             tags_display = ''.join(f'<span class="tag">{TYPE_EN.get(t, t)}</span>' for t in types_list)
-            search_text = f"{name_display} {album_display} {' '.join(TYPE_EN.get(t,t) for t in types_list)}".lower()
+            # 이벤트 태그 추가
+            tags_display += ''.join(f'<span class="tag" style="background: #fff3e0; color: #f57c00;">{e}</span>' for e in events_list)
+            # 시즌 태그 추가
+            tags_display += ''.join(f'<span class="tag" style="background: #e3f2fd; color: #1976d2;">{s}</span>' for s in seasons_list)
+            # 버전 태그 추가
+            if version:
+                tags_display += f'<span class="tag" style="background: #f3e5f5; color: #7b1fa2;">Ver.{version}</span>'
+            search_text = f"{name_display} {album_display} {' '.join(TYPE_EN.get(t,t) for t in types_list)} {' '.join(events_list)} {' '.join(seasons_list)}".lower()
         else:
             name_display = strip_parens(pc['official_name'])
             album_display = album
             tags_display = ''.join(f'<span class="tag">{t}</span>' for t in types_list)
-            search_text = f"{pc['official_name']} {album} {types_str}".lower()
+            # 이벤트 태그 추가
+            tags_display += ''.join(f'<span class="tag" style="background: #fff3e0; color: #f57c00;">{e}</span>' for e in events_list)
+            # 시즌 태그 추가
+            tags_display += ''.join(f'<span class="tag" style="background: #e3f2fd; color: #1976d2;">{s}</span>' for s in seasons_list)
+            # 버전 태그 추가
+            if version:
+                tags_display += f'<span class="tag" style="background: #f3e5f5; color: #7b1fa2;">Ver.{version}</span>'
+            search_text = f"{pc['official_name']} {album} {types_str} {' '.join(events_list)} {' '.join(seasons_list)}".lower()
         img_url = pc.get('image_url') or ''
         if img_url:
             thumb_block = f'<div class="photocard-thumb-wrap"><img class="photocard-thumb" src="{img_url}" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="placeholder" style="display:none">{s["no_image"]}</div></div>'
