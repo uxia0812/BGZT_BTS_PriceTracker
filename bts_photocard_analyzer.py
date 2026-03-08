@@ -80,7 +80,7 @@ FEEDBACK_WEBHOOK_URL = os.environ.get('FEEDBACK_WEBHOOK_URL', 'https://script.go
 
 # Google Analytics 4 측정 ID (GA4_SETUP.md 참고)
 # 예: G-XXXXXXXXXX
-GA4_MEASUREMENT_ID = os.environ.get('GA4_MEASUREMENT_ID', '')
+GA4_MEASUREMENT_ID = os.environ.get('GA4_MEASUREMENT_ID', 'G-N34TZXCRPY')
 # 또는 직접 입력: GA4_MEASUREMENT_ID = "G-XXXXXXXXXX"
 
 # 로케일별 UI 문자열
