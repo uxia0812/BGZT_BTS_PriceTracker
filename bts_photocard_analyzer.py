@@ -1484,44 +1484,85 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 
         /* 모바일 피드백 팝업 최적화 */
         @media (max-width: 768px) {{
-            .feedback-content {{
-                padding: 30px 20px;
-                max-width: 90vw;
+            .feedback-overlay {{
+                padding: 10px;
+                align-items: flex-start;
+                padding-top: 40px;
+            }}
+
+            .feedback-modal {{
+                padding: 25px 20px;
+                max-height: 85vh;
+                overflow-y: auto;
+                width: 95%;
+            }}
+
+            .feedback-header {{
+                margin-bottom: 20px;
+            }}
+
+            .feedback-emoji {{
+                font-size: 2.2em;
+                margin-bottom: 8px;
+            }}
+
+            .feedback-title {{
+                font-size: 1.4em;
+            }}
+
+            .feedback-subtitle {{
+                font-size: 0.85em;
+            }}
+
+            .feedback-question {{
+                margin-bottom: 20px;
             }}
 
             .feedback-question-title {{
-                font-size: 1em;
-                gap: 10px;
-                flex-wrap: nowrap;
+                font-size: 0.95em;
+                gap: 12px;
+                align-items: flex-start;
+                line-height: 1.5;
             }}
 
             .feedback-question-number {{
                 flex-shrink: 0;
-                width: 26px;
-                height: 26px;
+                min-width: 28px;
+                width: 28px;
+                height: 28px;
                 font-size: 0.9em;
+                margin-top: 2px;
             }}
 
             .feedback-options {{
                 gap: 8px;
+                flex-wrap: wrap;
             }}
 
             .feedback-option {{
-                padding: 12px 16px;
-                font-size: 0.95em;
+                padding: 10px 14px;
+                font-size: 0.9em;
             }}
 
             .feedback-textarea {{
-                font-size: 0.95em;
+                font-size: 0.9em;
+                min-height: 80px;
             }}
 
             .feedback-buttons {{
                 flex-direction: column;
                 gap: 10px;
+                margin-top: 20px;
             }}
 
             .feedback-btn {{
                 width: 100%;
+                padding: 12px 20px;
+            }}
+
+            .feedback-time {{
+                font-size: 0.8em;
+                margin-top: 10px;
             }}
         }}
 
