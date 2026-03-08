@@ -1146,12 +1146,8 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
             display: none !important;
         }}
 
-        .photocard.lazy-load {{
-            display: none !important;
-        }}
-
         .load-more-btn {{
-            display: block;
+            display: none;  /* PC에서는 숨김 */
             margin: 20px auto;
             padding: 12px 30px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1170,6 +1166,17 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 
         .load-more-btn.hidden {{
             display: none;
+        }}
+
+        /* 모바일에서만 lazy-load 적용 */
+        @media (max-width: 768px) {{
+            .photocard.lazy-load {{
+                display: none !important;
+            }}
+
+            .load-more-btn {{
+                display: block;  /* 모바일에서만 표시 */
+            }}
         }}
 
         /* 포카 종류 드롭다운 (멤버칩과 다른 형태) */
@@ -1475,6 +1482,49 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
             margin-top: 12px;
         }}
 
+        /* 모바일 피드백 팝업 최적화 */
+        @media (max-width: 768px) {{
+            .feedback-content {{
+                padding: 30px 20px;
+                max-width: 90vw;
+            }}
+
+            .feedback-question-title {{
+                font-size: 1em;
+                gap: 10px;
+                flex-wrap: nowrap;
+            }}
+
+            .feedback-question-number {{
+                flex-shrink: 0;
+                width: 26px;
+                height: 26px;
+                font-size: 0.9em;
+            }}
+
+            .feedback-options {{
+                gap: 8px;
+            }}
+
+            .feedback-option {{
+                padding: 12px 16px;
+                font-size: 0.95em;
+            }}
+
+            .feedback-textarea {{
+                font-size: 0.95em;
+            }}
+
+            .feedback-buttons {{
+                flex-direction: column;
+                gap: 10px;
+            }}
+
+            .feedback-btn {{
+                width: 100%;
+            }}
+        }}
+
         /* Toast notification */
         .toast {{
             position: fixed;
@@ -1716,13 +1766,13 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 """
             for idx, pc in enumerate(exact_cards[:100]):
                 card_html = render_photocard(pc, member, 'exact')
-                # 20개 이후 카드는 lazy-load 클래스 추가
-                if idx >= 20:
+                # 10개 이후 카드는 lazy-load 클래스 추가 (모바일에서만 적용)
+                if idx >= 10:
                     card_html = card_html.replace('<div class="photocard"', '<div class="photocard lazy-load"')
                 html += card_html
 
-            # 20개 이상일 경우 "더 보기" 버튼 추가
-            if len(exact_cards) > 20:
+            # 10개 이상일 경우 "더 보기" 버튼 추가
+            if len(exact_cards) > 10:
                 load_more_text = 'Load More' if is_en else '더 보기'
                 html += f"""
         <button class="load-more-btn" data-target="exact-{member}" onclick="loadMoreCards(this)">{load_more_text}</button>
@@ -1741,13 +1791,13 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 """
             for idx, pc in enumerate(similar_cards[:100]):
                 card_html = render_photocard(pc, member, 'similar')
-                # 20개 이후 카드는 lazy-load 클래스 추가
-                if idx >= 20:
+                # 10개 이후 카드는 lazy-load 클래스 추가 (모바일에서만 적용)
+                if idx >= 10:
                     card_html = card_html.replace('<div class="photocard"', '<div class="photocard lazy-load"')
                 html += card_html
 
-            # 20개 이상일 경우 "더 보기" 버튼 추가
-            if len(similar_cards) > 20:
+            # 10개 이상일 경우 "더 보기" 버튼 추가
+            if len(similar_cards) > 10:
                 load_more_text = 'Load More' if is_en else '더 보기'
                 html += f"""
         <button class="load-more-btn" data-target="similar-{member}" onclick="loadMoreCards(this)">{load_more_text}</button>
@@ -2027,7 +2077,7 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 
         if (searchInput) searchInput.addEventListener('input', applyFilters);
 
-        // ====== Load More Cards (Performance Optimization) ======
+        // ====== Load More Cards (Mobile Performance Optimization) ======
         function loadMoreCards(button) {
             const targetSection = button.dataset.target;
             const container = document.querySelector(`[data-section="${targetSection}"]`);
@@ -2035,9 +2085,9 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 
             const lazyCards = container.querySelectorAll('.photocard.lazy-load');
             let loadedCount = 0;
-            const BATCH_SIZE = 20;
+            const BATCH_SIZE = 10;  // 모바일에서 10개씩 로드
 
-            // 다음 20개 카드 표시
+            // 다음 10개 카드 표시
             lazyCards.forEach((card, index) => {
                 if (loadedCount < BATCH_SIZE) {
                     card.classList.remove('lazy-load');
