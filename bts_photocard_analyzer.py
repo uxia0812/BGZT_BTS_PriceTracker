@@ -784,9 +784,6 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
         }}
 
         .beta-content {{
@@ -1147,6 +1144,32 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 
         .member-section[data-hidden="true"] {{
             display: none !important;
+        }}
+
+        .photocard.lazy-load {{
+            display: none !important;
+        }}
+
+        .load-more-btn {{
+            display: block;
+            margin: 20px auto;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }}
+
+        .load-more-btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }}
+
+        .load-more-btn.hidden {{
+            display: none;
         }}
 
         /* 포카 종류 드롭다운 (멤버칩과 다른 형태) */
@@ -1689,10 +1712,21 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
             exact_label = 'Exact Matches' if is_en else '동일 상품'
             html += f"""
         <h3 style="color: #666; font-size: 1.2em; margin: 20px 0 15px 10px;">{exact_label} ({len(exact_cards)}{items_suffix if items_suffix else ''})</h3>
-        <div class="cards-container">
+        <div class="cards-container" data-section="exact-{member}">
 """
-            for pc in exact_cards[:100]:
-                html += render_photocard(pc, member, 'exact')
+            for idx, pc in enumerate(exact_cards[:100]):
+                card_html = render_photocard(pc, member, 'exact')
+                # 20개 이후 카드는 lazy-load 클래스 추가
+                if idx >= 20:
+                    card_html = card_html.replace('<div class="photocard"', '<div class="photocard lazy-load"')
+                html += card_html
+
+            # 20개 이상일 경우 "더 보기" 버튼 추가
+            if len(exact_cards) > 20:
+                load_more_text = 'Load More' if is_en else '더 보기'
+                html += f"""
+        <button class="load-more-btn" data-target="exact-{member}" onclick="loadMoreCards(this)">{load_more_text}</button>
+"""
 
             html += """
         </div>
@@ -1703,10 +1737,21 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
             similar_label = 'Similar Cards' if is_en else '유사 상품'
             html += f"""
         <h3 style="color: #6b7fd7; font-size: 1.2em; margin: 30px 0 15px 10px;">{similar_label} ({len(similar_cards)}{items_suffix if items_suffix else ''})</h3>
-        <div class="cards-container">
+        <div class="cards-container" data-section="similar-{member}">
 """
-            for pc in similar_cards[:100]:
-                html += render_photocard(pc, member, 'similar')
+            for idx, pc in enumerate(similar_cards[:100]):
+                card_html = render_photocard(pc, member, 'similar')
+                # 20개 이후 카드는 lazy-load 클래스 추가
+                if idx >= 20:
+                    card_html = card_html.replace('<div class="photocard"', '<div class="photocard lazy-load"')
+                html += card_html
+
+            # 20개 이상일 경우 "더 보기" 버튼 추가
+            if len(similar_cards) > 20:
+                load_more_text = 'Load More' if is_en else '더 보기'
+                html += f"""
+        <button class="load-more-btn" data-target="similar-{member}" onclick="loadMoreCards(this)">{load_more_text}</button>
+"""
 
             html += """
         </div>
@@ -1981,6 +2026,31 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
         }
 
         if (searchInput) searchInput.addEventListener('input', applyFilters);
+
+        // ====== Load More Cards (Performance Optimization) ======
+        function loadMoreCards(button) {
+            const targetSection = button.dataset.target;
+            const container = document.querySelector(`[data-section="${targetSection}"]`);
+            if (!container) return;
+
+            const lazyCards = container.querySelectorAll('.photocard.lazy-load');
+            let loadedCount = 0;
+            const BATCH_SIZE = 20;
+
+            // 다음 20개 카드 표시
+            lazyCards.forEach((card, index) => {
+                if (loadedCount < BATCH_SIZE) {
+                    card.classList.remove('lazy-load');
+                    loadedCount++;
+                }
+            });
+
+            // 남은 카드가 없으면 버튼 숨김
+            const remainingCards = container.querySelectorAll('.photocard.lazy-load');
+            if (remainingCards.length === 0) {
+                button.classList.add('hidden');
+            }
+        }
 
         // ====== Feedback System ======
         let feedbackShown = localStorage.getItem('feedbackShown');
