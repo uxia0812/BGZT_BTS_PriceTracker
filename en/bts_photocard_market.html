@@ -744,45 +744,45 @@
 <body>
     <div class="beta-banner">
         <div class="beta-content">
-            <span class="beta-badge">{beta_badge}</span>
-            <span class="beta-message">{beta_message}</span>
+            <span class="beta-badge">BETA</span>
+            <span class="beta-message"><strong>Experimental Preview:</strong> You're one of the first to explore this market tracker. Your feedback helps us improve!</span>
         </div>
-        <a href="{lang_url}" class="lang-switch">
-            {lang_text}
+        <a href="../bts_photocard_market.html" class="lang-switch">
+            🇰🇷 한국어
         </a>
     </div>
 
     <div class="main-content">
         <div class="header">
-            <h1>{s['title']}</h1>
-            <p>{s['subtitle']}</p>
+            <h1>BTS Photocard Price Guide</h1>
+            <p>Market prices based on Bunjang Global transaction data</p>
 
         <div class="stats-summary">
             <div class="stat-box">
-                <div class="number">{len(exact_stats)}</div>
-                <div class="label">{'Exact Matches' if is_en else '동일 상품'}</div>
+                <div class="number">2368</div>
+                <div class="label">Exact Matches</div>
             </div>
             <div class="stat-box">
-                <div class="number">{len(similar_stats)}</div>
-                <div class="label">{'Similar Cards' if is_en else '유사 상품'}</div>
+                <div class="number">2512</div>
+                <div class="label">Similar Cards</div>
             </div>
             <div class="stat-box">
-                <div class="number">{sum(pc['transaction_count'] for pc in all_stats):,}</div>
-                <div class="label">{s['total_trades']}</div>
+                <div class="number">17,194</div>
+                <div class="label">Total trades</div>
             </div>
             <div class="stat-box">
-                <div class="number">{avg_display}</div>
-                <div class="label">{s['avg_price']}</div>
+                <div class="number">$258.30</div>
+                <div class="label">Avg price</div>
             </div>
         </div>
 
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="{s['search_placeholder']}" oninput="applyFilters()">
+            <input type="text" id="searchInput" placeholder="Search by name, album, type..." oninput="applyFilters()">
         </div>
 
         <div class="member-row">
             <div class="member-chips" id="memberFilters">
-                <button class="filter-btn active" onclick="setMemberFilter('all')">{s['all']}</button>
+                <button class="filter-btn active" onclick="setMemberFilter('all')">All</button>
                 <button class="filter-btn" onclick="setMemberFilter('뷔')">V</button>
                 <button class="filter-btn" onclick="setMemberFilter('정국')">Jungkook</button>
                 <button class="filter-btn" onclick="setMemberFilter('진')">Jin</button>

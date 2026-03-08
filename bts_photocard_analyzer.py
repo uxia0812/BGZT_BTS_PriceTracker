@@ -1510,7 +1510,7 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
     </script>
 """
 
-    html += """
+    html += f"""
 </head>
 <body>
     <div class="beta-banner">
