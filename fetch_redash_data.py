@@ -47,12 +47,12 @@ def fetch_redash_results():
         print("  또는 .env 파일에 REDASH_API_KEY=your_api_key 추가")
         sys.exit(1)
 
-    url = f"{REDASH_BASE}/api/queries/{REDASH_QUERY_ID}/results.json"
-    headers = {"Authorization": f"Key {REDASH_API_KEY}"}
+    # URL 파라미터 방식으로 API Key 전달
+    url = f"{REDASH_BASE}/api/queries/{REDASH_QUERY_ID}/results.json?api_key={REDASH_API_KEY}"
 
     print(f"Redash 쿼리 결과 요청 중... (query_id={REDASH_QUERY_ID})")
     try:
-        r = requests.get(url, headers=headers, timeout=120)
+        r = requests.get(url, timeout=120)
         r.raise_for_status()
         data = r.json()
     except requests.exceptions.RequestException as e:

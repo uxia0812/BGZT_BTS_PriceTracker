@@ -16,6 +16,71 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #ffeef8 0%, #e6f3ff 100%);
             min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .beta-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .beta-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .beta-badge {
+            background: rgba(255, 255, 255, 0.25);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .beta-message {
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .beta-message strong {
+            font-weight: 600;
+        }
+
+        .lang-switch {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .lang-switch:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .main-content {
             padding: 20px;
         }
 
@@ -192,6 +257,31 @@
         }
 
         @media (max-width: 768px) {
+            .beta-banner {
+                flex-direction: column;
+                gap: 10px;
+                padding: 10px 15px;
+            }
+
+            .beta-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 8px;
+            }
+
+            .beta-message {
+                font-size: 0.85em;
+            }
+
+            .lang-switch {
+                align-self: stretch;
+                text-align: center;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+
             .header h1 {
                 font-size: 1.8em;
             }
@@ -410,40 +500,289 @@
             color: #4a5cc7;
             font-weight: 600;
         }
+
+        /* 피드백 모달 */
+        .feedback-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .feedback-overlay.show {
+            display: flex;
+        }
+
+        .feedback-modal {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .feedback-emoji {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .feedback-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .feedback-subtitle {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .feedback-question {
+            margin-bottom: 25px;
+        }
+
+        .feedback-question-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .feedback-question-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85em;
+            font-weight: 700;
+        }
+
+        .feedback-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .feedback-option {
+            flex: 1;
+            min-width: 140px;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 500;
+            background: white;
+        }
+
+        .feedback-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .feedback-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .feedback-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 0.95em;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .feedback-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .feedback-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .feedback-btn {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .feedback-btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .feedback-btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .feedback-btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .feedback-btn-skip {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .feedback-btn-skip:hover {
+            background: #e8e8e8;
+        }
+
+        .feedback-time {
+            text-align: center;
+            color: #999;
+            font-size: 0.85em;
+            margin-top: 12px;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+            font-weight: 500;
+            z-index: 10000;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .feedback-modal {
+                padding: 30px 20px;
+            }
+
+            .feedback-options {
+                flex-direction: column;
+            }
+
+            .feedback-option {
+                min-width: 100%;
+            }
+
+            .feedback-actions {
+                flex-direction: column;
+            }
+        }
     </style>
+
+    <!-- Vercel Analytics (무료 Hobby 플랜) -->
+    <script defer src="/_vercel/insights/script.js"></script>
+
 </head>
 <body>
-    <div class="header">
-        <p style="text-align:right; margin-bottom:-20px;"><a href="en/bts_photocard_market.html" style="color:#999; font-size:0.85em;">English</a></p>
-        <h1>BTS 포토카드 시세 분석</h1>
-        <p>글로벌번장 실거래 데이터 기반 시세 정보</p>
+    <div class="beta-banner">
+        <div class="beta-content">
+            <span class="beta-badge">{beta_badge}</span>
+            <span class="beta-message">{beta_message}</span>
+        </div>
+        <a href="{lang_url}" class="lang-switch">
+            {lang_text}
+        </a>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1>{s['title']}</h1>
+            <p>{s['subtitle']}</p>
 
         <div class="stats-summary">
             <div class="stat-box">
-                <div class="number">2368</div>
-                <div class="label">동일 상품</div>
+                <div class="number">{len(exact_stats)}</div>
+                <div class="label">{'Exact Matches' if is_en else '동일 상품'}</div>
             </div>
             <div class="stat-box">
-                <div class="number">2512</div>
-                <div class="label">유사 상품</div>
+                <div class="number">{len(similar_stats)}</div>
+                <div class="label">{'Similar Cards' if is_en else '유사 상품'}</div>
             </div>
             <div class="stat-box">
-                <div class="number">17,194</div>
-                <div class="label">총 거래 수</div>
+                <div class="number">{sum(pc['transaction_count'] for pc in all_stats):,}</div>
+                <div class="label">{s['total_trades']}</div>
             </div>
             <div class="stat-box">
-                <div class="number">348,710원</div>
-                <div class="label">평균 시세</div>
+                <div class="number">{avg_display}</div>
+                <div class="label">{s['avg_price']}</div>
             </div>
         </div>
 
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="포토카드명, 앨범, 타입으로 검색..." oninput="applyFilters()">
+            <input type="text" id="searchInput" placeholder="{s['search_placeholder']}" oninput="applyFilters()">
         </div>
 
         <div class="member-row">
             <div class="member-chips" id="memberFilters">
-                <button class="filter-btn active" onclick="setMemberFilter('all')">전체</button>
+                <button class="filter-btn active" onclick="setMemberFilter('all')">{s['all']}</button>
                 <button class="filter-btn" onclick="setMemberFilter('뷔')">뷔</button>
                 <button class="filter-btn" onclick="setMemberFilter('정국')">정국</button>
                 <button class="filter-btn" onclick="setMemberFilter('진')">진</button>
@@ -40502,6 +40841,46 @@
     </div>
 
     </div>
+    </div> <!-- .main-content -->
+
+    <!-- 피드백 모달 -->
+    <div class="feedback-overlay" id="feedbackOverlay">
+        <div class="feedback-modal">
+            <div class="feedback-header">
+                <div class="feedback-emoji">✨</div>
+                <div class="feedback-title">더 나은 도구를 만들어주세요!</div>
+                <div class="feedback-subtitle">카드를 열심히 탐색하고 계시네요! 30초만 투자해서 여러분이 원하는 기능을 만들 수 있게 도와주세요.
+            </div>
+        </div>
+
+            <div class="feedback-question">
+                <div class="feedback-question-title">
+                    <span class="feedback-question-number">1</span>
+                    <span>이 포토카드 시세 기능이 있다면 사이트를 더 유용하게 사용하실 건가요?</span>
+                </div>
+                <div class="feedback-options">
+                    <div class="feedback-option" data-question="1" data-value="yes">네, 매우 유용해요!</div>
+                    <div class="feedback-option" data-question="1" data-value="maybe">글쎄요</div>
+                    <div class="feedback-option" data-question="1" data-value="no">별로 필요없어요</div>
+                </div>
+            </div>
+
+            <div class="feedback-question">
+                <div class="feedback-question-title">
+                    <span class="feedback-question-number">2</span>
+                    <span>개선점이나 제안사항이 있으신가요? (선택사항)</span>
+                </div>
+                <textarea class="feedback-textarea" id="feedbackText" placeholder="어떤 기능이 추가되면 좋을까요?"></textarea>
+            </div>
+
+            <div class="feedback-actions">
+                <button class="feedback-btn feedback-btn-skip feedback-skip">나중에 할게요</button>
+                <button class="feedback-btn feedback-btn-submit feedback-submit">의견 보내기</button>
+            </div>
+
+            <div class="feedback-time">⏱️ 30초도 안 걸려요</div>
+        </div>
+    </div>
 
     <script>
         // 차트 데이터
@@ -50230,6 +50609,136 @@
         }
 
         if (searchInput) searchInput.addEventListener('input', applyFilters);
+
+        // ====== Feedback System ======
+        let feedbackShown = localStorage.getItem('feedbackShown');
+        let selectedUsefulness = null;
+
+        console.log('🔍 Feedback system initialized');
+        console.log('📦 feedbackShown from localStorage:', feedbackShown);
+
+        // TEST MODE: 항상 팝업 표시 (localStorage 무시)
+        // 실제 배포 시: if (!feedbackShown) 로 변경
+        console.log('⏱️ Starting 10-second timer for feedback popup...');
+        setTimeout(() => {
+            console.log('⏰ 10 seconds elapsed! Showing feedback modal...');
+            showFeedbackModal();
+            localStorage.setItem('feedbackShown', 'true');
+        }, 10000);  // 10초 = 10000ms
+
+        function showFeedbackModal() {
+            const overlay = document.querySelector('.feedback-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeFeedbackModal() {
+            const overlay = document.querySelector('.feedback-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function showToast(message) {
+            // Create toast element if it doesn't exist
+            let toast = document.getElementById('feedbackToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'feedbackToast';
+                toast.className = 'toast';
+                document.body.appendChild(toast);
+            }
+
+            // Set message and show toast
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Handle option selection (radio button behavior)
+        document.querySelectorAll('.feedback-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.feedback-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedUsefulness = this.dataset.value;
+            });
+        });
+
+        // Handle Skip button
+        const skipBtn = document.querySelector('.feedback-skip');
+        if (skipBtn) {
+            skipBtn.addEventListener('click', closeFeedbackModal);
+        }
+
+        // Handle Submit button
+        const submitBtn = document.querySelector('.feedback-submit');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function() {
+                const suggestions = document.getElementById('feedbackText')?.value || '';
+
+                // Prepare feedback data
+                const feedbackData = {
+                    usefulness: selectedUsefulness,
+                    suggestions: suggestions.trim(),
+                    locale: "ko",
+                    timestamp: new Date().toISOString(),
+                    url: window.location.href
+                };
+
+                const webhookUrl = "https://script.google.com/macros/s/AKfycbzbaKZQOH2aVfMrs1ujKbtsrNk8htpIMORRibDRPm_zjws79PpGQ9FVyOtjKEjtow50Hg/exec";
+
+                // Always log to console first for debugging
+                console.log('📝 Feedback data:', feedbackData);
+                console.log('🔗 Webhook URL:', webhookUrl);
+
+                // Send to Google Apps Script webhook (if configured)
+                if (webhookUrl) {
+                    fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },  // Changed to avoid CORS preflight
+                        body: JSON.stringify(feedbackData),
+                        redirect: 'follow'
+                    }).then(response => {
+                        console.log('✅ Response status:', response.status);
+                        return response.text();
+                    }).then(data => {
+                        console.log('✅ Response data:', data);
+                        console.log('✅ Feedback sent successfully to Google Sheets');
+                    }).catch(err => {
+                        console.error('❌ Feedback send error:', err);
+                        console.log('📋 Feedback data (for manual entry):', feedbackData);
+                    });
+                } else {
+                    // Webhook not configured, just log to console
+                    console.log('⚠️ Webhook not configured');
+                    console.info('💡 To enable server collection, set FEEDBACK_WEBHOOK_URL in bts_photocard_analyzer.py');
+                }
+
+                // Close modal first
+                closeFeedbackModal();
+
+                // Show thank you toast message
+                const thankYouMessage = "\uac10\uc0ac\ud569\ub2c8\ub2e4! \uc18c\uc911\ud55c \uc758\uacac \uc798 \ubc1b\uc558\uc2b5\ub2c8\ub2e4.";
+                showToast(thankYouMessage);
+            });
+        }
+
+        // Close modal when clicking overlay background
+        const overlay = document.querySelector('.feedback-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeFeedbackModal();
+                }
+            });
+        }
     </script>
 </body>
 </html>
