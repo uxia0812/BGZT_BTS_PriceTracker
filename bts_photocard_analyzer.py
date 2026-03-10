@@ -754,12 +754,35 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
     lang_url = '../bts_photocard_market.html' if is_en else 'en/bts_photocard_market.html'
     lang_text = '🇰🇷 한국어' if is_en else '🇺🇸 English'
 
+    # Open Graph 메타 태그 준비
+    og_title = s['title']
+    og_description = 'Real-time BTS photocard market analysis based on Bunjang Global transaction data' if is_en else '번장 글로벌 거래 데이터 기반 BTS 포토카드 실시간 시세 분석'
+    og_url = 'https://bgzt-bts-price-tracker.vercel.app/'
+    og_image = 'https://bgzt-bts-price-tracker.vercel.app/bts_price_tracker.png'
+
     html = f"""<!DOCTYPE html>
 <html lang="{'en' if is_en else 'ko'}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{s['title']}</title>
+
+    <!-- Open Graph / Facebook / KakaoTalk -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{og_url}">
+    <meta property="og:title" content="{og_title}">
+    <meta property="og:description" content="{og_description}">
+    <meta property="og:image" content="{og_image}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{og_url}">
+    <meta property="twitter:title" content="{og_title}">
+    <meta property="twitter:description" content="{og_description}">
+    <meta property="twitter:image" content="{og_image}">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {{
