@@ -1949,7 +1949,7 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
 
     html += """</span>
                 </div>
-                <textarea class="feedback-textarea" id="feedbackText" placeholder=\"""" + ('What would make this tool better for you?' if is_en else '어떤 기능이 추가되면 좋을까요?') + """\"></textarea>
+                <textarea class="feedback-textarea" id="feedbackText" maxlength="3000" placeholder=\"""" + ('What would make this tool better for you?' if is_en else '어떤 기능이 추가되면 좋을까요?') + """\"></textarea>
             </div>
 
             <div class="feedback-actions">
