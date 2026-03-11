@@ -1647,6 +1647,15 @@ def generate_html(photocard_stats_dict, output_file, locale='ko'):
     </script>
 """
 
+    # Vercel Speed Insights 추가
+    html += """
+    <!-- Vercel Speed Insights -->
+    <script>
+        window.si = window.si || function () {{ (window.siq = window.siq || []).push(arguments); }};
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
+"""
+
     html += f"""
 </head>
 <body>
