@@ -50666,63 +50666,191 @@
 
         };
 
-        const chartTickCb = function(value) { return '$' + value.toFixed(1); };
-        const chartTooltipCb = function(context) { return '$' + context.parsed.y.toFixed(2); };
-        const chartClickHint = "Click to view product";
+        // ── Price Distribution Histogram ───────────────────────────────
+        function fmtUSD(v) {
+            if (v >= 1000) return '$' + Math.round(v / 1000) + 'K';
+            return '$' + Math.round(v);
+        }
 
-        // 차트 생성 (호버 시 가격 + 클릭 유도, 클릭 시 해당 상품 PDP로 이동)
+        function buildHistogram(prices, urls) {
+            if (!prices || prices.length === 0) return null;
+            const sorted = [...prices].sort((a, b) => a - b);
+            const q1 = sorted[Math.floor(sorted.length * 0.25)] || sorted[0];
+            const q3 = sorted[Math.floor(sorted.length * 0.75)] || sorted[sorted.length - 1];
+            const iqr = q3 - q1;
+            const upper = q3 + 3 * (iqr || q3);
+            const filtered = sorted.filter(p => p <= upper);
+            const min = filtered[0];
+            const max = filtered[filtered.length - 1];
+            const numBins = Math.max(3, Math.min(6, filtered.length));
+            const pairs = prices.map((p, i) => ({ p, u: urls[i] }));
+
+            if (min === max) {
+                return {
+                    labels: [fmtUSD(min)],
+                    counts: [prices.length],
+                    urlGroups: [pairs.map(x => x.u)],
+                    priceGroups: [pairs.map(x => x.p)],
+                    medianBin: 0,
+                    binRanges: [[min, max + 1]]
+                };
+            }
+
+            const binSize = (max - min) / numBins;
+            const labels = [], counts = [], urlGroups = [], priceGroups = [], binRanges = [];
+
+            for (let i = 0; i < numBins; i++) {
+                const lo = min + i * binSize;
+                const hi = i === numBins - 1 ? max + 1 : min + (i + 1) * binSize;
+                const inBin = pairs.filter(({ p }) => p >= lo && p < hi);
+                labels.push(fmtUSD(Math.round(lo)));
+                counts.push(inBin.length);
+                urlGroups.push(inBin.map(x => x.u));
+                priceGroups.push(inBin.map(x => x.p));
+                binRanges.push([lo, hi]);
+            }
+
+            const median = sorted[Math.floor(sorted.length / 2)];
+            let medianBin = 0;
+            for (let i = 0; i < binRanges.length; i++) {
+                if (median >= binRanges[i][0] && median < binRanges[i][1]) { medianBin = i; break; }
+            }
+            return { labels, counts, urlGroups, priceGroups, medianBin, binRanges };
+        }
+
+        // Listing popup (global singleton)
+        const _binPopup = (() => {
+            const el = document.createElement('div');
+            el.id = 'bin-popup';
+            el.style.cssText = [
+                'position:fixed','z-index:99999','display:none',
+                'background:rgba(20,8,46,0.97)',
+                'border:1px solid rgba(161,140,209,0.4)',
+                'border-radius:14px','padding:13px 11px',
+                'min-width:168px','max-width:240px',
+                'box-shadow:0 14px 44px rgba(0,0,0,0.5)',
+                'backdrop-filter:blur(10px)'
+            ].join(';');
+            document.body.appendChild(el);
+            document.addEventListener('click', (e) => {
+                if (!el.contains(e.target)) el.style.display = 'none';
+            });
+            return el;
+        })();
+
+        function showBinPopup(nativeEvt, urls, priceArr, fmtFn) {
+            const rows = urls.map((url, i) => `
+                <a href="${url}" target="_blank" style="
+                    display:flex;align-items:center;justify-content:space-between;
+                    padding:7px 9px;margin-bottom:4px;border-radius:8px;
+                    background:rgba(161,140,209,0.13);color:#fff;
+                    text-decoration:none;font-size:12px;font-weight:500;gap:8px;
+                    transition:background 0.15s"
+                   onmouseover="this.style.background='rgba(161,140,209,0.30)'"
+                   onmouseout="this.style.background='rgba(161,140,209,0.13)'">
+                    <span style="color:#fbc2eb">${fmtFn(priceArr[i])}</span>
+                    <span style="color:rgba(255,255,255,0.45);font-size:10px">→ View</span>
+                </a>`).join('');
+
+            _binPopup.innerHTML = `
+                <div style="font-size:10px;color:rgba(251,194,235,0.65);
+                            margin-bottom:9px;font-weight:600;letter-spacing:0.04em">
+                    ${urls.length} listing${urls.length > 1 ? 's' : ''} in this range
+                </div>${rows}`;
+
+            const pw = 244, ph = 52 + urls.length * 40;
+            const x = Math.min(nativeEvt.clientX + 10, window.innerWidth  - pw - 12);
+            const y = Math.min(nativeEvt.clientY + 10, window.innerHeight - ph - 12);
+            _binPopup.style.left    = x + 'px';
+            _binPopup.style.top     = y + 'px';
+            _binPopup.style.display = 'block';
+        }
+
+        // Histogram chart creation
         Object.keys(chartData).forEach(chartId => {
             const ctx = document.getElementById(chartId);
-            if (ctx) {
-                ctx.style.cursor = 'pointer';
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: chartData[chartId].labels,
-                        datasets: [{
-                            data: chartData[chartId].data,
-                            borderColor: '#ff9a9e',
-                            backgroundColor: 'rgba(255, 154, 158, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.4,
-                            pointRadius: 3,
-                            pointHoverRadius: 7,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        onClick: (evt, elements, chart) => {
-                            if (elements.length > 0 && chartData[chartId] && chartData[chartId].urls) {
-                                const idx = elements[0].index;
-                                const url = chartData[chartId].urls[idx];
-                                if (url) window.open(url, '_blank');
-                            }
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: chartTooltipCb,
-                                    afterLabel: () => chartClickHint
-                                }
-                            }
-                        },
-                        scales: {
-                            x: { display: false },
-                            y: {
-                                display: true,
-                                ticks: {
-                                    callback: chartTickCb,
-                                    font: { size: 10 }
-                                },
-                                grid: { color: 'rgba(0,0,0,0.05)' }
-                            }
+            if (!ctx) return;
+            const { data: prices, urls } = chartData[chartId];
+            const hist = buildHistogram(prices, urls);
+            if (!hist) return;
+            ctx.style.cursor = 'pointer';
+
+            const maxCount = Math.max(...hist.counts, 1);
+            const barBg = hist.counts.map((c, i) =>
+                i === hist.medianBin
+                    ? 'rgba(161,140,209,0.92)'
+                    : `rgba(251,194,235,${0.3 + 0.6 * (c / maxCount)})`
+            );
+            const barBorder = hist.counts.map((_, i) =>
+                i === hist.medianBin ? 'rgba(130,100,200,1)' : 'rgba(255,154,158,0.45)'
+            );
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: hist.labels,
+                    datasets: [{
+                        data: hist.counts,
+                        backgroundColor: barBg,
+                        borderColor: barBorder,
+                        borderWidth: 1.5,
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (evt, elements) => {
+                        if (elements.length === 0) return;
+                        const idx       = elements[0].index;
+                        const binUrls   = hist.urlGroups[idx];
+                        const binPrices = hist.priceGroups[idx];
+                        if (!binUrls || binUrls.length === 0) return;
+                        if (binUrls.length === 1) {
+                            window.open(binUrls[0], '_blank');
+                        } else {
+                            showBinPopup(evt.native || evt, binUrls, binPrices, fmtUSD);
                         }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => {
+                                    const i = items[0].dataIndex;
+                                    const [lo, hi] = hist.binRanges[i];
+                                    return `${fmtUSD(Math.round(lo))} ~ ${fmtUSD(Math.round(hi - 1))}`;
+                                },
+                                label: (c) => hist.priceGroups[c.dataIndex]
+                                    .map((p, i) => ` ${i + 1}. ${fmtUSD(p)}`),
+                                afterLabel: (c) => hist.priceGroups[c.dataIndex].length > 1
+                                    ? 'Click to see all listings'
+                                    : 'Click to view listing'
+                            },
+                            backgroundColor: 'rgba(28,12,56,0.92)',
+                            titleColor: '#fbc2eb',
+                            bodyColor: '#ffffff',
+                            padding: 11,
+                            cornerRadius: 9,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            ticks: {
+                                font: { size: 9 },
+                                color: 'rgba(120,80,160,0.75)',
+                                maxRotation: 0
+                            },
+                            grid: { display: false },
+                            border: { display: false }
+                        },
+                        y: { display: false, beginAtZero: true }
                     }
-                });
-            }
+                }
+            });
         });
 
         // 필터 상태
